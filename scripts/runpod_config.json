@@ -1,0 +1,17 @@
+{
+  "template_name": "ollama-serverless-template",
+  "endpoint_name": "ollama-serverless-endpoint",
+  "container_disk_gb": 20,
+  "volume_gb": 0,
+  "volume_mount_path": "/workspace",
+  "env": [],
+  "ports": "8000/http",
+  "start_jupyter": false,
+  "start_ssh": false,
+  "gpu_ids": "AMPERE_16",
+  "locations": "US",
+  "idle_timeout": 5,
+  "workers_min": 0,
+  "workers_max": 3,
+  "jobs_per_worker": 1
+} 
