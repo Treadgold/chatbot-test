@@ -317,11 +317,16 @@ class ChatBot:
             
             # Parse the structured response with error handling
             try:
-                combined_structured_response = Response.model_validate_json(combined_response_result)
+                # Check if it's already a Response object
+                if isinstance(combined_response_result, Response):
+                    combined_structured_response = combined_response_result
+                else:
+                    combined_structured_response = Response.model_validate_json(combined_response_result)
             except Exception as e:
                 # Fallback: Create a simple response structure if JSON parsing fails
+                response_text = str(combined_response_result)
                 combined_structured_response = Response(
-                    response=combined_response_result[:500] + "..." if len(combined_response_result) > 500 else combined_response_result,
+                    response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
                     tone="aggressive"
                 )
             
@@ -353,11 +358,16 @@ class ChatBot:
         
         # Parse the structured response with error handling
         try:
-            structured_response = Response.model_validate_json(response_result)
+            # Check if it's already a Response object
+            if isinstance(response_result, Response):
+                structured_response = response_result
+            else:
+                structured_response = Response.model_validate_json(response_result)
         except Exception as e:
             # Fallback: Create a simple response structure if JSON parsing fails
+            response_text = str(response_result)
             structured_response = Response(
-                response=response_result[:500] + "..." if len(response_result) > 500 else response_result,
+                response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
                 tone="friendly"
             )
         
@@ -387,11 +397,16 @@ class ChatBot:
         
         # Parse the structured response with error handling
         try:
-            final_structured_response = Response.model_validate_json(final_response_result)
+            # Check if it's already a Response object
+            if isinstance(final_response_result, Response):
+                final_structured_response = final_response_result
+            else:
+                final_structured_response = Response.model_validate_json(final_response_result)
         except Exception as e:
             # Fallback: Create a simple response structure if JSON parsing fails
+            response_text = str(final_response_result)
             final_structured_response = Response(
-                response=final_response_result[:500] + "..." if len(final_response_result) > 500 else final_response_result,
+                response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
                 tone="aggressive"
             )
         
@@ -447,8 +462,21 @@ class ChatBot:
         quality_score = result.get("quality_score")
         joke_iteration = result.get("joke_iteration", 0)
         
-        principles_response = responses[1] if len(responses) > 1 else ""
-        final_combined_response = responses[-1] if responses else "No response generated"
+        # Debug: Print what's in responses
+        print(f"[DEBUG] Responses list: {responses}")
+        print(f"[DEBUG] Response types: {[type(r) for r in responses]}")
+        
+        # Ensure responses are strings
+        string_responses = []
+        for r in responses:
+            if isinstance(r, str):
+                string_responses.append(r)
+            else:
+                # Convert Response objects to strings
+                string_responses.append(str(r))
+        
+        principles_response = string_responses[1] if len(string_responses) > 1 else ""
+        final_combined_response = string_responses[-1] if string_responses else "No response generated"
         
         # Update conversation history with this exchange
         updated_history = (conversation_history or []).copy()
