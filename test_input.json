@@ -1,0 +1,11 @@
+{
+  "input": {
+    "model": "dolphin-mistral-nemo:latest",
+    "prompt": "What is artificial intelligence? Explain it in simple terms.",
+    "stream": false,
+    "options": {
+      "temperature": 0.7,
+      "num_predict": 150
+    }
+  }
+} 
