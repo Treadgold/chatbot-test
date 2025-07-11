@@ -8,7 +8,7 @@
   "ports": "8000/http",
   "start_jupyter": false,
   "start_ssh": false,
-  "gpu_ids": "AMPERE_16",
+  "gpu_ids": "AMPERE_24",
   "locations": "US",
   "idle_timeout": 5,
   "workers_min": 0,
