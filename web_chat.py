@@ -25,8 +25,8 @@ config = ChatBotConfig(
 
 cfg = ChatBotConfig(
     provider="runpod",  # Using standard RunPod vLLM endpoint
-    runpod_endpoint="https://api.runpod.ai/v2/5hgggs410ddltq",  # Base URL without /run
-    runpod_api_key="${RUNPOD_API_KEY}",
+    runpod_endpoint=os.getenv('RUNPOD_ENDPOINT', "https://api.runpod.ai/v2/5hgggs410ddltq"),  # Base URL without /run
+    runpod_api_key=os.getenv('RUNPOD_API_KEY'),
     principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
 )
 chatbot = ChatBot(cfg)
