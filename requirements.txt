@@ -1,0 +1,9 @@
+flask
+langchain-core
+langchain-ollama
+langgraph
+pydantic
+typing-extensions
+stripe
+python-dotenv
+requests
