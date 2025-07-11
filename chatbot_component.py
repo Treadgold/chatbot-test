@@ -1,10 +1,3 @@
-import os
-
-# Force Ollama to use GPU only
-os.environ["OLLAMA_NUM_CPU"] = "0"
-os.environ["OLLAMA_N_GPU_LAYERS"] = "9999"  # "9999" = max layers
-os.environ["OLLAMA_CTX_SIZE"] = "8192"      # Optional, helps avoid OOM
-
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import HumanMessage

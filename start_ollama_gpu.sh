@@ -14,10 +14,5 @@ echo "OLLAMA_NUM_CPU: $OLLAMA_NUM_CPU"
 echo "OLLAMA_N_GPU_LAYERS: $OLLAMA_N_GPU_LAYERS"
 echo "OLLAMA_CTX_SIZE: $OLLAMA_CTX_SIZE"
 
-# Start Ollama server in background
-ollama serve &
-
-# Wait a moment for server to start
-sleep 3
-
-echo "Ollama server started. You can now run your web application." 
+# Start Ollama server
+ollama serve 
