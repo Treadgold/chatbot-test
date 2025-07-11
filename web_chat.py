@@ -14,7 +14,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
 # Initialize the chatbot with default configuration
 # You can customize these settings
 config = ChatBotConfig(
-    model_name="dolphin-mistral-nemo:latest",
+    model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
     base_url="http://localhost:11434",
     max_iterations=3,
     min_joke_score=800,
