@@ -163,6 +163,10 @@ class ChatBot:
         if model_cls and self.config.provider not in ["runpod", "runpod_ollama"]:
             raw = self.llm.invoke(prompt, config={"format": model_cls.model_json_schema()})
             try:
+                # Check if raw is already a model instance
+                if isinstance(raw, model_cls):
+                    return raw
+                # Otherwise try to parse as JSON
                 return model_cls.model_validate_json(raw)
             except Exception:
                 return raw  # caller will handle fallback
