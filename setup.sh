@@ -3,6 +3,9 @@
 # Download and install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
 
+# start ollama
+ollama serve &
+
 # Pull the model
 ollama pull CognitiveComputations/dolphin-mistral-nemo:latest
 
