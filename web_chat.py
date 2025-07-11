@@ -29,10 +29,10 @@ cfg = ChatBotConfig(
     runpod_api_key=os.getenv('RUNPOD_API_KEY'),
     principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
 )
-chatbot = ChatBot(cfg)
+#chatbot = ChatBot(cfg)
 #print(bot.get_simple_response("List 20 cities in Europe"))
 
-#chatbot = ChatBot(config)
+chatbot = ChatBot(config)
 
 @app.route('/')
 def index():
