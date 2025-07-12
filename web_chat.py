@@ -13,15 +13,23 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
 
 # Initialize the chatbot with default configuration
 # You can customize these settings
+# config = ChatBotConfig(
+#     model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
+#     base_url="http://localhost:11434",
+#     max_iterations=3,
+#     min_joke_score=800,
+#     principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
+# )
+
 config = ChatBotConfig(
-    model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
-    base_url="http://localhost:11434",
+    model_name="nemo-custom:latest",
+    base_url="https://vc9fx2v79484c9-11434.proxy.runpod.net/",
     max_iterations=3,
     min_joke_score=800,
     principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
 )
 
-
+# nemo-custom:latest
 
 cfg = ChatBotConfig(
     provider="runpod",  # Using standard RunPod vLLM endpoint

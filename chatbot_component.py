@@ -41,10 +41,12 @@ class ChatBotConfig:
     """Configuration class for the chatbot.
 
     Args:
-        provider:   Which LLM backend to use. Options: ``"ollama"`` (default), ``"runpod"``, or ``"runpod_ollama"``.
+        provider:   Which LLM backend to use. Options: ``"ollama"`` (default), ``"runpod"``, ``"runpod_ollama"``, or ``"runpod_ollama_proxy"``.
         runpod_endpoint:  Base URL of the RunPod endpoint (e.g. ``https://api.runpod.ai/v2/<id>``);
                          only needed when *provider* is "runpod" or "runpod_ollama".
         runpod_api_key:   RunPod API key; only needed for "runpod" or "runpod_ollama".
+        runpod_ollama_proxy_url: RunPod Ollama proxy URL (e.g. ``https://vc9fx2v79484c9-11434.proxy.runpod.net``);
+                                 only needed when *provider* is "runpod_ollama_proxy".
     """
 
     def __init__(
@@ -57,6 +59,7 @@ class ChatBotConfig:
         provider: str = "ollama",
         runpod_endpoint: str | None = None,
         runpod_api_key: str | None = None,
+        runpod_ollama_proxy_url: str | None = None,
     ):
         self.model_name = model_name
         self.base_url = base_url
@@ -68,6 +71,7 @@ class ChatBotConfig:
         self.provider = provider.lower()
         self.runpod_endpoint = runpod_endpoint
         self.runpod_api_key = runpod_api_key
+        self.runpod_ollama_proxy_url = runpod_ollama_proxy_url
 
 class ChatBot:
     """A reusable chatbot component with LangGraph-based conversation flow"""
@@ -99,6 +103,16 @@ class ChatBot:
                 model=self.config.model_name
             )
             # Re-use the same RunPod Ollama client for all LLM calls
+            self.quality_score_llm = self.llm
+            self.joke_writer_llm = self.llm
+        elif self.config.provider == "runpod_ollama_proxy":
+            if not self.config.runpod_ollama_proxy_url:
+                raise ValueError("RunPod Ollama proxy URL must be provided when provider='runpod_ollama_proxy'.")
+            self.llm = OllamaLLM(
+                model=self.config.model_name, 
+                base_url=self.config.runpod_ollama_proxy_url
+            )
+            # Re-use the same Ollama client for all LLM calls
             self.quality_score_llm = self.llm
             self.joke_writer_llm = self.llm
         else:
@@ -160,7 +174,7 @@ class ChatBot:
         attempt to parse. For RunPod providers we fall back to plain text because most
         vLLM workers or custom handlers may not support LangChain's format spec.
         """
-        if model_cls and self.config.provider not in ["runpod", "runpod_ollama"]:
+        if model_cls and self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
             raw = self.llm.invoke(prompt, config={"format": model_cls.model_json_schema()})
             try:
                 # Check if raw is already a model instance
@@ -183,8 +197,8 @@ class ChatBot:
         # Format conversation context
         context = self._format_conversation_history(conversation_history)
         
-        # Build prompt. If provider is runpod or runpod_ollama, ask for plain text; otherwise ask for JSON.
-        if self.config.provider in ["runpod", "runpod_ollama"]:
+        # Build prompt. If provider is runpod, runpod_ollama, or runpod_ollama_proxy, ask for plain text; otherwise ask for JSON.
+        if self.config.provider in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
             prompt = (
                 f"{context}\nThink about: {user_message}. Make a judgement on whether the user has views that align with you principles:{self.config.principles}. "
                 "Provide your thoughts in plain English, two short sentences."
@@ -194,7 +208,7 @@ class ChatBot:
                 f"{context}\nThink about: {user_message}. Make a judgement on whether the user has views that align with you principles:{self.config.principles}. If you feel they are 'your kind of people', you will be kind and friendly. However, if they seem to have opposite principles, you will interpret their comments in a negative light. Consider the conversation history and provide your thoughts as JSON with fields: thought (string) and reasoning (string)."
             )
 
-        thought_response = self._invoke_llm(prompt, Thought if self.config.provider not in ["runpod", "runpod_ollama"] else None)
+        thought_response = self._invoke_llm(prompt, Thought if self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"] else None)
 
         # If we requested structured output and got a Thought instance, use it; otherwise fallback to raw string
         if isinstance(thought_response, Thought):
@@ -229,7 +243,7 @@ class ChatBot:
             prompt = f"{context}\nImprove this joke: '{previous_joke.joke}'. The previous score was {quality_feedback.score}/1000. Reason: {quality_feedback.reason}. Consider the conversation history and write a better, more relevant joke. IMPORTANT: Return ONLY valid JSON with fields: joke (string) and num_words (int). If your joke contains quotes, escape them with backslashes."
         
         # Use LangChain's invoke method with structured output
-        generated_joke = self._invoke_llm(prompt, Generated_Joke if self.config.provider != "runpod" else None)
+        generated_joke = self._invoke_llm(prompt, Generated_Joke if self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"] else None)
         
         # Parse the structured response with error handling
         try:
@@ -265,7 +279,7 @@ class ChatBot:
         joke = state['generated_joke']
         quality_score_response = self._invoke_llm(
             f"Score the joke '{joke.joke}' on a scale of 0 to 1000. Return your score as JSON with fields: score (int) and reason (string).",
-            Quality_Score if self.config.provider != "runpod" else None
+            Quality_Score if self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"] else None
         )
         
         # Parse the structured response with error handling
@@ -312,7 +326,7 @@ class ChatBot:
             # Use LangChain's invoke method with structured output
             combined_response_result = self._invoke_llm(
                 combine_prompt,
-                Response if self.config.provider != "runpod" else None
+                Response if self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"] else None
             )
             
             # Parse the structured response with error handling
@@ -345,7 +359,7 @@ class ChatBot:
         # Format conversation context
         context = self._format_conversation_history(conversation_history)
         
-        if self.config.provider in ["runpod", "runpod_ollama"]:
+        if self.config.provider in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
             prompt_resp = (
                 f"{context}\nYou have been thinking '{thought}' about the user's message '{user_message}'. "
                 "Respond appropriately to the user in plain text, one or two sentences."
@@ -354,7 +368,7 @@ class ChatBot:
             prompt_resp = (
                 f"{context}\nYou have been thinking '{thought}' about the user's message '{user_message}'. Consider the conversation history and respond appropriately to the user. Return your response as JSON with fields: response (string) and tone (string)."
             )
-        response_result = self._invoke_llm(prompt_resp, Response if self.config.provider not in ["runpod", "runpod_ollama"] else None)
+        response_result = self._invoke_llm(prompt_resp, Response if self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"] else None)
         
         # Parse the structured response with error handling
         try:
@@ -383,7 +397,7 @@ class ChatBot:
         # Format conversation context
         context = self._format_conversation_history(conversation_history)
         
-        if self.config.provider in ["runpod", "runpod_ollama"]:
+        if self.config.provider in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
             prompt_final = (
                 f"{context}\nOriginal response: {response_text}. User message: {user_input}. Principles: {self.config.principles}. "
                 "Apply these principles and produce a concise reply in plain text."
@@ -393,7 +407,7 @@ class ChatBot:
                 f"{context}\nOriginal response: {response_text}. User message: {user_input}. Principles: {self.config.principles}. Consider the conversation history and apply these principles to create your final response as JSON with fields: response (string) and tone (string)."
             )
 
-        final_response_result = self._invoke_llm(prompt_final, Response if self.config.provider not in ["runpod", "runpod_ollama"] else None)
+        final_response_result = self._invoke_llm(prompt_final, Response if self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"] else None)
         
         # Parse the structured response with error handling
         try:
