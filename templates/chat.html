@@ -74,6 +74,12 @@
             background: #ccc;
             cursor: not-allowed;
         }
+        .clear-button {
+            background: #dc3545;
+        }
+        .clear-button:hover {
+            background: #c82333;
+        }
         .demo-section {
             background: #f8f9fa;
             padding: 20px;
@@ -100,6 +106,13 @@
             color: #666;
             font-style: italic;
         }
+        .session-info {
+            background: #e9ecef;
+            padding: 10px 20px;
+            font-size: 12px;
+            color: #666;
+            border-bottom: 1px solid #eee;
+        }
     </style>
 </head>
 <body>
@@ -107,6 +120,11 @@
         <div class="header">
             <h1>AI Scotsman - Chat Demo</h1>
             <p>Chat with the AI and try out Stripe payments!</p>
+        </div>
+        
+        <div class="session-info" id="session-info">
+            Session ID: <span id="session-id">Loading...</span> | 
+            Messages: <span id="message-count">0</span>
         </div>
         
         <div class="chat-container" id="chat-container">
@@ -118,6 +136,7 @@
         <div class="input-container">
             <input type="text" id="message-input" placeholder="Type your message..." onkeypress="handleKeyPress(event)">
             <button onclick="sendMessage()" id="send-button">Send</button>
+            <button onclick="clearConversation()" id="clear-button" class="clear-button">Clear Chat</button>
         </div>
         
         <div class="demo-section">
@@ -134,7 +153,9 @@
         const chatContainer = document.getElementById('chat-container');
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
-        let conversationHistory = [];
+        const clearButton = document.getElementById('clear-button');
+        const sessionIdSpan = document.getElementById('session-id');
+        const messageCountSpan = document.getElementById('message-count');
 
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
@@ -166,6 +187,15 @@
             }
         }
 
+        function updateSessionInfo(sessionId, messageCount) {
+            if (sessionId) {
+                sessionIdSpan.textContent = sessionId.substring(0, 8) + '...';
+            }
+            if (messageCount !== undefined) {
+                messageCountSpan.textContent = messageCount;
+            }
+        }
+
         async function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
@@ -188,8 +218,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        message: message,
-                        conversation_history: conversationHistory
+                        message: message
                     })
                 });
 
@@ -199,11 +228,10 @@
                     addMessage('Error: ' + data.error);
                 } else {
                     addMessage(data.response);
-                    // Update conversation history
-                    conversationHistory.push(
-                        {'role': 'user', 'content': message},
-                        {'role': 'assistant', 'content': data.response}
-                    );
+                    // Update session info if provided
+                    if (data.session_id) {
+                        updateSessionInfo(data.session_id, data.conversation_history ? data.conversation_history.length : undefined);
+                    }
                 }
             } catch (error) {
                 addMessage('Error: Could not connect to the server');
@@ -214,6 +242,43 @@
                 messageInput.focus();
             }
         }
+
+        async function clearConversation() {
+            try {
+                const response = await fetch('/clear-conversation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Clear the chat display
+                    chatContainer.innerHTML = '<div class="message bot-message">Hello! I\'m your AI assistant. How can I help you today?</div>';
+                    updateSessionInfo(null, 0);
+                } else {
+                    alert('Error clearing conversation: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error clearing conversation: Could not connect to the server');
+            }
+        }
+
+        // Load initial session info
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('/get-conversation-history');
+                const data = await response.json();
+                
+                if (data.session_id) {
+                    updateSessionInfo(data.session_id, data.history_length);
+                }
+            } catch (error) {
+                console.log('Could not load session info:', error);
+            }
+        });
     </script>
 </body>
 </html> 

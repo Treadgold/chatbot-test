@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from chatbot_component import ChatBot, ChatBotConfig
 from stripe_payment import create_payment_intent, get_payment_intent, STRIPE_PUBLISHABLE_KEY
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import uuid
 
 # Load environment variables
 load_dotenv()
@@ -42,9 +43,31 @@ cfg = ChatBotConfig(
 
 chatbot = ChatBot(config)
 
+def get_session_conversation_history():
+    """Get conversation history for current session, initialize if needed"""
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+        session['conversation_history'] = []
+    return session.get('conversation_history', [])
+
+def update_session_conversation_history(user_input, ai_response):
+    """Update conversation history for current session"""
+    history = get_session_conversation_history()
+    history.append({
+        'user': user_input,
+        'ai': ai_response
+    })
+    # Keep only last 20 exchanges to prevent session bloat
+    if len(history) > 20:
+        history = history[-20:]
+    session['conversation_history'] = history
+    return history
+
 @app.route('/')
 def index():
     """Serve the main chat page"""
+    # Initialize session if needed
+    get_session_conversation_history()
     return render_template('chat.html')
 
 @app.route('/chat', methods=['POST'])
@@ -53,40 +76,31 @@ def chat():
     try:
         data = request.get_json()
         user_input = data.get('message', '')
-        conversation_history = data.get('conversation_history', [])
         
         print(f"[DEBUG] Received user_input: {user_input}")
-        print(f"[DEBUG] Received conversation_history: {conversation_history}")
         
         if not user_input.strip():
             print("[DEBUG] Empty message received.")
             return jsonify({'error': 'Empty message'}), 400
         
-        # --- FIX: Convert OpenAI-style history to backend format ---
-        def convert_history(history):
-            converted = []
-            i = 0
-            while i < len(history):
-                if history[i].get('role') == 'user':
-                    user_msg = history[i].get('content', '')
-                    ai_msg = ""
-                    if i + 1 < len(history) and history[i+1].get('role') == 'assistant':
-                        ai_msg = history[i+1].get('content', '')
-                        i += 1
-                    converted.append({'user': user_msg, 'ai': ai_msg})
-                i += 1
-            return converted
-        conversation_history = convert_history(conversation_history)
-        # --- END FIX ---
+        # Get conversation history from session
+        conversation_history = get_session_conversation_history()
+        print(f"[DEBUG] Session conversation_history: {conversation_history}")
         
-        # Get response from chatbot with conversation history
+        # Get response from chatbot with session conversation history
         response = chatbot.chat(user_input, conversation_history)
         print(f"[DEBUG] Chatbot raw response: {response}")
         
+        # Update session with new conversation exchange
+        final_response = response.get('final_response', '')
+        updated_history = update_session_conversation_history(user_input, final_response)
+        
         # Ensure the frontend gets a 'response' key for display
         frontend_response = {
-            'response': response.get('final_response', ''),
+            'response': final_response,
             'debug': response,  # Optionally send all debug info to frontend for now
+            'session_id': session.get('session_id'),
+            'conversation_history': updated_history  # Send updated history back to frontend
         }
         print(f"[DEBUG] Sending frontend_response: {frontend_response}")
         return jsonify(frontend_response)
@@ -105,11 +119,39 @@ def simple_chat():
         if not user_input.strip():
             return jsonify({'error': 'Empty message'}), 400
         
+        # Get conversation history from session
+        conversation_history = get_session_conversation_history()
+        
         # Get simple response from chatbot
-        response = chatbot.get_simple_response(user_input)
+        response = chatbot.get_simple_response(user_input, conversation_history)
+        
+        # Update session with new conversation exchange
+        update_session_conversation_history(user_input, response)
         
         return jsonify({'response': response})
     
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/clear-conversation', methods=['POST'])
+def clear_conversation():
+    """Clear conversation history for current session"""
+    try:
+        session['conversation_history'] = []
+        return jsonify({'status': 'success', 'message': 'Conversation cleared'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/get-conversation-history', methods=['GET'])
+def get_conversation_history():
+    """Get current conversation history for debugging"""
+    try:
+        history = get_session_conversation_history()
+        return jsonify({
+            'session_id': session.get('session_id'),
+            'conversation_history': history,
+            'history_length': len(history)
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
