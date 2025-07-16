@@ -32,4 +32,4 @@ COPY ollama_handler.py .
 # RUN ollama serve & sleep 5 && ollama pull dolphin-mistral-nemo:latest && pkill ollama
 
 # Set the handler
-CMD ["python3", "ollama_handler.py"] 
+CMD ["python3", "-u", "ollama_handler.py"] 

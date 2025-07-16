@@ -7,7 +7,21 @@ import sys
 import json
 import time
 import requests
+from pathlib import Path
+
 from typing import Dict, Any, Optional
+
+def load_env_file():
+    """Load environment variables from .env file"""
+    env_file = Path(__file__).parent.parent / ".env"
+    if env_file.exists():
+        with open(env_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key] = value
+
 
 
 class RunPodDeployer:
@@ -22,12 +36,13 @@ class RunPodDeployer:
     def create_template(self, name: str, docker_image: str, config: Dict[str, Any]) -> Optional[str]:
         """Create a new template or update existing one"""
         query = """
-        mutation CreateTemplate($input: PodTemplateInput!) {
+        mutation CreateTemplate($input: SaveTemplateInput!) {
             saveTemplate(input: $input) {
                 id
                 name
-                dockerImage
-                containerDiskSizeGb
+                imageName
+                dockerArgs
+                containerDiskInGb
                 volumeInGb
                 volumeMountPath
                 env {
@@ -44,8 +59,8 @@ class RunPodDeployer:
         variables = {
             "input": {
                 "name": name,
-                "dockerImage": docker_image,
-                "containerDiskSizeGb": config.get("container_disk_gb", 20),
+                "imageName": f"docker.io/{docker_image}",
+                "containerDiskInGb": config.get("container_disk_gb", 20),
                 "volumeInGb": config.get("volume_gb", 0),
                 "volumeMountPath": config.get("volume_mount_path", "/workspace"),
                 "env": config.get("env", []),
@@ -77,7 +92,7 @@ class RunPodDeployer:
         """Create a serverless endpoint"""
         query = """
         mutation CreateEndpoint($input: EndpointInput!) {
-            createEndpoint(input: $input) {
+            saveEndpoint(input: $input) {
                 id
                 name
                 userId
@@ -86,11 +101,6 @@ class RunPodDeployer:
                 networkVolumeId
                 locations
                 idleTimeout
-                scaleSettings {
-                    workersMin
-                    workersMax
-                    jobsPerWorker
-                }
             }
         }
         """
@@ -102,12 +112,7 @@ class RunPodDeployer:
                 "gpuIds": config.get("gpu_ids", "AMPERE_16"),
                 "networkVolumeId": config.get("network_volume_id"),
                 "locations": config.get("locations", "US"),
-                "idleTimeout": config.get("idle_timeout", 5),
-                "scaleSettings": {
-                    "workersMin": config.get("workers_min", 0),
-                    "workersMax": config.get("workers_max", 3),
-                    "jobsPerWorker": config.get("jobs_per_worker", 1)
-                }
+                "idleTimeout": config.get("idle_timeout", 5)
             }
         }
         
@@ -122,7 +127,7 @@ class RunPodDeployer:
             if "errors" in data:
                 print(f"❌ Error creating endpoint: {data['errors']}")
                 return None
-            endpoint_id = data["data"]["createEndpoint"]["id"]
+            endpoint_id = data["data"]["saveEndpoint"]["id"]
             print(f"✅ Serverless endpoint created: {endpoint_id}")
             return endpoint_id
         else:
@@ -134,10 +139,10 @@ class RunPodDeployer:
         query = """
         query GetTemplates {
             myself {
-                templates {
+                podTemplates {
                     id
                     name
-                    dockerImage
+                    dockerArgs
                 }
             }
         }
@@ -155,7 +160,7 @@ class RunPodDeployer:
                 print(f"❌ Error getting templates: {data['errors']}")
                 return None
             
-            templates = data["data"]["myself"]["templates"]
+            templates = data["data"]["myself"]["podTemplates"]
             for template in templates:
                 if template["name"] == name:
                     return template["id"]
@@ -271,10 +276,14 @@ def main():
     print("🚀 RunPod Serverless Deployment")
     print("=" * 40)
     
+    # Load environment variables from .env file
+    load_env_file()
+    
     # Get API key
     api_key = os.getenv("RUNPOD_API_KEY")
     if not api_key:
         print("❌ RUNPOD_API_KEY environment variable not set")
+        print("💡 Make sure the .env file exists and contains RUNPOD_API_KEY=your_key")
         sys.exit(1)
     
     # Get Docker image
