@@ -101,6 +101,9 @@ class RunPodDeployer:
                 networkVolumeId
                 locations
                 idleTimeout
+                workersMin
+                workersMax
+                jobsPerWorker
             }
         }
         """
@@ -112,7 +115,10 @@ class RunPodDeployer:
                 "gpuIds": config.get("gpu_ids", "AMPERE_16"),
                 "networkVolumeId": config.get("network_volume_id"),
                 "locations": config.get("locations", "US"),
-                "idleTimeout": config.get("idle_timeout", 5)
+                "idleTimeout": config.get("idle_timeout", 5),
+                "workersMin": config.get("workers_min", 0),
+                "workersMax": config.get("workers_max", 3),
+                "jobsPerWorker": config.get("jobs_per_worker", 1)
             }
         }
         
@@ -259,8 +265,13 @@ def load_config() -> Dict[str, Any]:
         "container_disk_gb": 20,
         "volume_gb": 0,
         "volume_mount_path": "/workspace",
-        "env": [],
-        "ports": "8000/http",
+        "env": [
+            {"key": "DEFAULT_MODEL", "value": "dolphin-mistral-nemo:latest"},
+            {"key": "PYTHONUNBUFFERED", "value": "1"},
+            {"key": "OLLAMA_HOST", "value": "0.0.0.0"},
+            {"key": "OLLAMA_ORIGINS", "value": "*"}
+        ],
+        "ports": "11434/http",
         "start_jupyter": False,
         "start_ssh": False,
         "gpu_ids": "AMPERE_16",
