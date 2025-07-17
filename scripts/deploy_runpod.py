@@ -103,7 +103,6 @@ class RunPodDeployer:
                 idleTimeout
                 workersMin
                 workersMax
-                jobsPerWorker
             }
         }
         """
@@ -117,8 +116,7 @@ class RunPodDeployer:
                 "locations": config.get("locations", "US"),
                 "idleTimeout": config.get("idle_timeout", 5),
                 "workersMin": config.get("workers_min", 0),
-                "workersMax": config.get("workers_max", 3),
-                "jobsPerWorker": config.get("jobs_per_worker", 1)
+                "workersMax": config.get("workers_max", 3)
             }
         }
         
