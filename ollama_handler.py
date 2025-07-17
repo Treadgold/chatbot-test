@@ -10,33 +10,27 @@ import os
 import sys
 import time
 import subprocess
-import logging
 from typing import Dict, Any, Optional
 
-# Configure logging for RunPod
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
+def log(message):
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}", flush=True)
 
 def ensure_model_available(model_name: str) -> bool:
     """Ensure the specified model is available, download if needed"""
     try:
         # Check if model exists
+        log(f"🔍 Checking if model {model_name} is available...")
         response = requests.get("http://localhost:11434/api/tags", timeout=10)
         if response.status_code == 200:
             models = response.json().get("models", [])
+            log(f"📋 Available models: {[m.get('name', '') for m in models]}")
             for model in models:
                 if model.get("name", "").startswith(model_name):
-                    logger.info(f"✅ Model {model_name} is already available")
+                    log(f"✅ Model {model_name} is already available")
                     return True
         
         # Download model if not found
-        logger.info(f"📥 Downloading model {model_name}...")
+        log(f"📥 Downloading model {model_name}...")
         pull_response = requests.post(
             "http://localhost:11434/api/pull",
             json={"name": model_name},
@@ -44,14 +38,14 @@ def ensure_model_available(model_name: str) -> bool:
         )
         
         if pull_response.status_code == 200:
-            logger.info(f"✅ Model {model_name} downloaded successfully")
+            log(f"✅ Model {model_name} downloaded successfully")
             return True
         else:
-            logger.error(f"❌ Failed to download model {model_name}: {pull_response.text}")
+            log(f"❌ Failed to download model {model_name}: {pull_response.text}")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error ensuring model availability: {e}")
+        log(f"❌ Error ensuring model availability: {e}")
         return False
 
 def handler(job):
@@ -60,7 +54,7 @@ def handler(job):
     This is called for each request to the endpoint
     """
     try:
-        logger.info("🚀 Handler started")
+        log("🚀 Handler started")
         
         # Get input from job
         job_input = job.get("input", {})
@@ -68,8 +62,8 @@ def handler(job):
         model = job_input.get("model", "dolphin-mistral-nemo:latest")
         options = job_input.get("options", {})
         
-        logger.info(f"📝 Processing prompt: {prompt[:100]}...")
-        logger.info(f"🤖 Using model: {model}")
+        log(f"📝 Processing prompt: {prompt[:100]}...")
+        log(f"🤖 Using model: {model}")
         
         # Ensure model is available
         if not ensure_model_available(model):
@@ -87,7 +81,7 @@ def handler(job):
             }
         }
         
-        logger.info("🔄 Sending request to Ollama...")
+        log("🔄 Sending request to Ollama...")
         
         # Make request to Ollama
         response = requests.post(
@@ -100,7 +94,7 @@ def handler(job):
             result = response.json()
             generated_text = result.get("response", "")
             
-            logger.info(f"✅ Generated {len(generated_text)} characters")
+            log(f"✅ Generated {len(generated_text)} characters")
             
             return {
                 "output": generated_text,
@@ -114,12 +108,12 @@ def handler(job):
             }
         else:
             error_msg = f"Ollama API error: {response.status_code} - {response.text}"
-            logger.error(error_msg)
+            log(error_msg)
             return {"error": error_msg}
             
     except Exception as e:
         error_msg = f"Handler error: {str(e)}"
-        logger.error(error_msg)
+        log(error_msg)
         return {"error": error_msg}
 
 def check_ollama_health():
@@ -132,28 +126,28 @@ def check_ollama_health():
 
 def wait_for_ollama(max_wait=60):
     """Wait for Ollama to be ready"""
-    logger.info("⏳ Waiting for Ollama to be ready...")
+    log("⏳ Waiting for Ollama to be ready...")
     
     for i in range(max_wait):
         if check_ollama_health():
-            logger.info(f"✅ Ollama is ready after {i + 1} seconds!")
+            log(f"✅ Ollama is ready after {i + 1} seconds!")
             return True
         
         if i % 10 == 0 and i > 0:
-            logger.info(f"Still waiting for Ollama... ({i}/{max_wait} seconds)")
+            log(f"Still waiting for Ollama... ({i}/{max_wait} seconds)")
         
         time.sleep(1)
     
-    logger.error(f"❌ Ollama not ready after {max_wait} seconds")
+    log(f"❌ Ollama not ready after {max_wait} seconds")
     return False
 
 def start_ollama():
     """Start Ollama server if not already running"""
     if check_ollama_health():
-        logger.info("✅ Ollama is already running")
+        log("✅ Ollama is already running")
         return True
     
-    logger.info("🔄 Starting Ollama server...")
+    log("🔄 Starting Ollama server...")
     try:
         # Start Ollama in background
         process = subprocess.Popen(
@@ -164,30 +158,30 @@ def start_ollama():
         
         # Wait for it to be ready
         if wait_for_ollama():
-            logger.info("✅ Ollama server started successfully")
+            log("✅ Ollama server started successfully")
             return True
         else:
-            logger.error("❌ Failed to start Ollama server")
+            log("❌ Failed to start Ollama server")
             return False
             
     except Exception as e:
-        logger.error(f"❌ Error starting Ollama: {e}")
+        log(f"❌ Error starting Ollama: {e}")
         return False
 
 if __name__ == "__main__":
-    logger.info("🚀 RunPod Ollama Worker Starting...")
+    log("🚀 RunPod Ollama Worker Starting...")
     
     # Start Ollama server
     if not start_ollama():
-        logger.error("❌ Failed to start Ollama, exiting...")
+        log("❌ Failed to start Ollama, exiting...")
         sys.exit(1)
     
     # Pre-download the default model
     default_model = os.getenv("DEFAULT_MODEL", "dolphin-mistral-nemo:latest")
-    logger.info(f"📥 Pre-downloading default model: {default_model}")
+    log(f"📥 Pre-downloading default model: {default_model}")
     ensure_model_available(default_model)
     
-    logger.info("✅ Worker initialization complete, starting RunPod handler...")
+    log("✅ Worker initialization complete, starting RunPod handler...")
     
     # Start the RunPod serverless worker
     runpod.serverless.start({"handler": handler}) 
