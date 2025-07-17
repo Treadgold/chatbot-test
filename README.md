@@ -59,7 +59,7 @@ cfg = ChatBotConfig(
     provider="runpod_ollama",
     runpod_endpoint="https://api.runpod.ai/v2/YOUR_ENDPOINT_ID",
     runpod_api_key="your_runpod_api_key",
-    model_name="dolphin-mistral-nemo:latest"
+    model_name="CognitiveComputations/dolphin-mistral-nemo:latest"
 )
 
 bot = ChatBot(cfg)

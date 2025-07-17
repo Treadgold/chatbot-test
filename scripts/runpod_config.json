@@ -1,14 +1,18 @@
 {
   "template_name": "ollama-serverless-template",
   "endpoint_name": "ollama-serverless-endpoint",
-  "container_disk_gb": 20,
+  "container_disk_gb": 30,
   "volume_gb": 0,
   "volume_mount_path": "/workspace",
   "env": [
-    {"key": "DEFAULT_MODEL", "value": "dolphin-mistral-nemo:latest"},
+    {"key": "DEFAULT_MODEL", "value": "CognitiveComputations/dolphin-mistral-nemo:latest"},
     {"key": "PYTHONUNBUFFERED", "value": "1"},
     {"key": "OLLAMA_HOST", "value": "0.0.0.0"},
-    {"key": "OLLAMA_ORIGINS", "value": "*"}
+    {"key": "OLLAMA_ORIGINS", "value": "*"},
+    {"key": "OLLAMA_GPU_LAYERS", "value": "50"},
+    {"key": "OLLAMA_KEEP_ALIVE", "value": "5m"},
+    {"key": "OLLAMA_LOAD_TIMEOUT", "value": "5m"},
+    {"key": "CUDA_VISIBLE_DEVICES", "value": "0"}
   ],
   "ports": "11434/http",
   "start_jupyter": false,

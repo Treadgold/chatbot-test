@@ -60,7 +60,7 @@ class RunPodDeployer:
             "input": {
                 "name": name,
                 "imageName": f"docker.io/{docker_image}",
-                "containerDiskInGb": config.get("container_disk_gb", 20),
+                "containerDiskInGb": config.get("container_disk_gb", 30),
                 "volumeInGb": config.get("volume_gb", 0),
                 "volumeMountPath": config.get("volume_mount_path", "/workspace"),
                 "env": config.get("env", []),
@@ -211,7 +211,7 @@ class RunPodDeployer:
         test_payload = {
             "input": {
                 "prompt": "Hello, this is a test. Please respond briefly.",
-                "model": "dolphin-mistral-nemo:latest",
+                "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
                 "options": {
                     "temperature": 0.7,
                     "num_predict": 50
@@ -264,7 +264,7 @@ def load_config() -> Dict[str, Any]:
         "volume_gb": 0,
         "volume_mount_path": "/workspace",
         "env": [
-            {"key": "DEFAULT_MODEL", "value": "dolphin-mistral-nemo:latest"},
+            {"key": "DEFAULT_MODEL", "value": "CognitiveComputations/dolphin-mistral-nemo:latest"},
             {"key": "PYTHONUNBUFFERED", "value": "1"},
             {"key": "OLLAMA_HOST", "value": "0.0.0.0"},
             {"key": "OLLAMA_ORIGINS", "value": "*"}

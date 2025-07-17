@@ -51,7 +51,7 @@ class ChatBotConfig:
 
     def __init__(
         self,
-        model_name: str = "dolphin-mistral-nemo:latest",
+        model_name: str = "CognitiveComputations/dolphin-mistral-nemo:latest",
         base_url: str = "http://localhost:11434",
         max_iterations: int = 3,
         min_joke_score: int = 800,

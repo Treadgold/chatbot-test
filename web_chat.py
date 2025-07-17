@@ -23,7 +23,7 @@ app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
 # )
 
 config = ChatBotConfig(
-    model_name="nemo-custom:latest",
+    model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
     base_url="https://vc9fx2v79484c9-11434.proxy.runpod.net/",
     max_iterations=3,
     min_joke_score=800,

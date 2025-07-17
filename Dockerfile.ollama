@@ -24,12 +24,30 @@ RUN pip3 install requests runpod
 # Create working directory
 WORKDIR /app
 
-# Copy handler script
+# Copy handler script and scripts
 COPY ollama_handler.py .
+COPY test_input.json .
+COPY scripts/download_model.sh /tmp/download_model.sh
+COPY scripts/start.sh /tmp/start.sh
 
-# Download model during build (optional - can also download on first run)
-# Uncomment the model you want to pre-download:
-# RUN ollama serve & sleep 5 && ollama pull dolphin-mistral-nemo:latest && pkill ollama
+# Make scripts executable
+RUN chmod +x /tmp/download_model.sh /tmp/start.sh
 
-# Set the handler
-CMD ["python3", "-u", "ollama_handler.py"] 
+# Download model during build
+RUN ollama serve & \
+    OLLAMA_PID=$! && \
+    echo "Started Ollama service with PID: $OLLAMA_PID" && \
+    until ollama list >/dev/null 2>&1; do \
+        echo "Waiting for Ollama service to start..." && \
+        sleep 2; \
+    done && \
+    echo "Ollama service is ready, downloading model..." && \
+    /tmp/download_model.sh && \
+    echo "Model download completed" && \
+    kill $OLLAMA_PID && \
+    wait $OLLAMA_PID 2>/dev/null || true && \
+    echo "Ollama service stopped"
+    
+
+# Set the startup script
+CMD ["/tmp/start.sh"] 

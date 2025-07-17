@@ -1,11 +1,10 @@
 {
   "input": {
-    "model": "dolphin-mistral-nemo:latest",
-    "prompt": "What is artificial intelligence? Explain it in simple terms.",
-    "stream": false,
+    "prompt": "Hello! Can you tell me a short joke?",
+    "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
     "options": {
       "temperature": 0.7,
-      "num_predict": 150
+      "num_predict": 100
     }
   }
 } 

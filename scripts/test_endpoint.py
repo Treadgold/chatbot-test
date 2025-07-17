@@ -38,7 +38,7 @@ def test_endpoint(endpoint_id: str, api_key: str, test_prompts: list = None) -> 
         payload = {
             "input": {
                 "prompt": prompt,
-                "model": "dolphin-mistral-nemo:latest",
+                "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
                 "options": {
                     "temperature": 0.7,
                     "num_predict": 100

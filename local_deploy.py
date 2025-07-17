@@ -244,7 +244,7 @@ class LocalDeployer:
         test_payload = {
             "input": {
                 "prompt": "Hello, this is a test. Please respond briefly.",
-                "model": "dolphin-mistral-nemo:latest",
+                "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
                 "options": {
                     "temperature": 0.7,
                     "num_predict": 50

@@ -10,7 +10,7 @@ class RunPodOllamaLLM:
         self,
         endpoint: str,
         api_key: str,
-        model: str = "dolphin-mistral-nemo:latest",
+        model: str = "CognitiveComputations/dolphin-mistral-nemo:latest",
         poll_interval: float = 1.0,
         timeout: float = 300.0,  # 5 minutes for model download + generation
     ):

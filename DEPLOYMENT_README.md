@@ -110,7 +110,7 @@ curl -X POST \
   -d '{
     "input": {
       "prompt": "Hello! How are you?",
-      "model": "dolphin-mistral-nemo:latest",
+      "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
       "options": {
         "temperature": 0.7,
         "num_predict": 100
@@ -133,7 +133,7 @@ response = requests.post(
     json={
         "input": {
             "prompt": "Tell me a joke",
-            "model": "dolphin-mistral-nemo:latest",
+            "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
             "options": {"temperature": 0.7, "num_predict": 100}
         }
     },

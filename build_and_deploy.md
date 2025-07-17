@@ -47,7 +47,7 @@ cfg = ChatBotConfig(
     provider="runpod_ollama",
     runpod_endpoint="https://api.runpod.ai/v2/YOUR_ENDPOINT_ID",  # Replace with actual endpoint ID
     runpod_api_key="your_runpod_api_key",  # Replace with your API key
-    model_name="dolphin-mistral-nemo:latest"  # Or any Ollama model
+    model_name="CognitiveComputations/dolphin-mistral-nemo:latest"  # Or any Ollama model
 )
 
 bot = ChatBot(cfg)
@@ -69,7 +69,7 @@ headers = {
 }
 payload = {
     "input": {
-        "model": "dolphin-mistral-nemo:latest",
+        "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
         "prompt": "What is a banana?",
         "stream": False
     }

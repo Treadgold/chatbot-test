@@ -25,12 +25,12 @@ class Response(BaseModel):
     tone: str = Field(description="The tone of the response (friendly, formal, casual, etc.)")
 
 # Step 1: Create the OllamaLLM instance with the desired model
-llm = OllamaLLM(model="dolphin-mistral-nemo:latest",
+llm = OllamaLLM(model="CognitiveComputations/dolphin-mistral-nemo:latest",
                 base_url="http://localhost:11434")
 
-quality_score_llm = OllamaLLM(model="dolphin-mistral-nemo:latest",
+quality_score_llm = OllamaLLM(model="CognitiveComputations/dolphin-mistral-nemo:latest",
                 base_url="http://localhost:11434")
-joke_writer_llm = OllamaLLM(model="dolphin-mistral-nemo:latest",
+joke_writer_llm = OllamaLLM(model="CognitiveComputations/dolphin-mistral-nemo:latest",
                 base_url="http://localhost:11434")
 
 

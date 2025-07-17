@@ -5,71 +5,24 @@ Follows the official RunPod pattern for serverless workers
 """
 import runpod
 import requests
-import json
 import os
-import sys
-import time
-import subprocess
-from typing import Dict, Any, Optional
-
-def log(message):
-    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')}] {message}", flush=True)
-
-def ensure_model_available(model_name: str) -> bool:
-    """Ensure the specified model is available, download if needed"""
-    try:
-        # Check if model exists
-        log(f"🔍 Checking if model {model_name} is available...")
-        response = requests.get("http://localhost:11434/api/tags", timeout=10)
-        if response.status_code == 200:
-            models = response.json().get("models", [])
-            log(f"📋 Available models: {[m.get('name', '') for m in models]}")
-            for model in models:
-                if model.get("name", "").startswith(model_name):
-                    log(f"✅ Model {model_name} is already available")
-                    return True
-        
-        # Download model if not found
-        log(f"📥 Downloading model {model_name}...")
-        pull_response = requests.post(
-            "http://localhost:11434/api/pull",
-            json={"name": model_name},
-            timeout=600  # 10 minutes timeout for model download
-        )
-        
-        if pull_response.status_code == 200:
-            log(f"✅ Model {model_name} downloaded successfully")
-            return True
-        else:
-            log(f"❌ Failed to download model {model_name}: {pull_response.text}")
-            return False
-            
-    except Exception as e:
-        log(f"❌ Error ensuring model availability: {e}")
-        return False
 
 def handler(job):
     """
-    RunPod serverless handler function
-    This is called for each request to the endpoint
+    Processes incoming requests to your Serverless endpoint.
+    Args:
+        job (dict): Contains the input data and request metadata
+    Returns:
+        The generated text from Ollama
     """
+    print(f"Worker Start")
+    job_input = job.get('input', {})
+    prompt = job_input.get('prompt', 'Hello!')
+    model = job_input.get('model', 'CognitiveComputations/dolphin-mistral-nemo:latest')
+    options = job_input.get('options', {})
+    print(f"Received prompt: {prompt}")
+    print(f"Using model: {model}")
     try:
-        log("🚀 Handler started")
-        
-        # Get input from job
-        job_input = job.get("input", {})
-        prompt = job_input.get("prompt", "Hello!")
-        model = job_input.get("model", "dolphin-mistral-nemo:latest")
-        options = job_input.get("options", {})
-        
-        log(f"📝 Processing prompt: {prompt[:100]}...")
-        log(f"🤖 Using model: {model}")
-        
-        # Ensure model is available
-        if not ensure_model_available(model):
-            return {"error": f"Failed to ensure model {model} is available"}
-        
-        # Prepare request payload
         payload = {
             "model": model,
             "prompt": prompt,
@@ -80,108 +33,26 @@ def handler(job):
                 **options
             }
         }
-        
-        log("🔄 Sending request to Ollama...")
-        
-        # Make request to Ollama
+        print("Sending request to Ollama...")
         response = requests.post(
             "http://localhost:11434/api/generate",
             json=payload,
-            timeout=300  # 5 minutes timeout
+            timeout=300
         )
-        
         if response.status_code == 200:
             result = response.json()
             generated_text = result.get("response", "")
-            
-            log(f"✅ Generated {len(generated_text)} characters")
-            
-            return {
-                "output": generated_text,
-                "model": model,
-                "prompt": prompt,
-                "done": result.get("done", True),
-                "total_duration": result.get("total_duration"),
-                "load_duration": result.get("load_duration"),
-                "prompt_eval_count": result.get("prompt_eval_count"),
-                "eval_count": result.get("eval_count")
-            }
+            print(f"Generated {len(generated_text)} characters")
+            return generated_text
         else:
             error_msg = f"Ollama API error: {response.status_code} - {response.text}"
-            log(error_msg)
-            return {"error": error_msg}
-            
+            print(error_msg)
+            return error_msg
     except Exception as e:
         error_msg = f"Handler error: {str(e)}"
-        log(error_msg)
-        return {"error": error_msg}
+        print(error_msg)
+        return error_msg
 
-def check_ollama_health():
-    """Check if Ollama is running and healthy"""
-    try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
-        return response.status_code == 200
-    except:
-        return False
-
-def wait_for_ollama(max_wait=60):
-    """Wait for Ollama to be ready"""
-    log("⏳ Waiting for Ollama to be ready...")
-    
-    for i in range(max_wait):
-        if check_ollama_health():
-            log(f"✅ Ollama is ready after {i + 1} seconds!")
-            return True
-        
-        if i % 10 == 0 and i > 0:
-            log(f"Still waiting for Ollama... ({i}/{max_wait} seconds)")
-        
-        time.sleep(1)
-    
-    log(f"❌ Ollama not ready after {max_wait} seconds")
-    return False
-
-def start_ollama():
-    """Start Ollama server if not already running"""
-    if check_ollama_health():
-        log("✅ Ollama is already running")
-        return True
-    
-    log("🔄 Starting Ollama server...")
-    try:
-        # Start Ollama in background
-        process = subprocess.Popen(
-            ["ollama", "serve"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        
-        # Wait for it to be ready
-        if wait_for_ollama():
-            log("✅ Ollama server started successfully")
-            return True
-        else:
-            log("❌ Failed to start Ollama server")
-            return False
-            
-    except Exception as e:
-        log(f"❌ Error starting Ollama: {e}")
-        return False
-
-if __name__ == "__main__":
-    log("🚀 RunPod Ollama Worker Starting...")
-    
-    # Start Ollama server
-    if not start_ollama():
-        log("❌ Failed to start Ollama, exiting...")
-        sys.exit(1)
-    
-    # Pre-download the default model
-    default_model = os.getenv("DEFAULT_MODEL", "dolphin-mistral-nemo:latest")
-    log(f"📥 Pre-downloading default model: {default_model}")
-    ensure_model_available(default_model)
-    
-    log("✅ Worker initialization complete, starting RunPod handler...")
-    
-    # Start the RunPod serverless worker
-    runpod.serverless.start({"handler": handler}) 
+if __name__ == '__main__':
+    print("🚀 RunPod Ollama Worker Starting...")
+    runpod.serverless.start({'handler': handler}) 
