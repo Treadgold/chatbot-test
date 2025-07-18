@@ -92,4 +92,7 @@ dmypy.json
 .pyre/
 
 # Docker
-.dockerignore 
+.dockerignore
+
+# Ollama models (large files, downloaded locally)
+models/ 

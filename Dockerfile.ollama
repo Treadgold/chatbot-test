@@ -1,53 +1,37 @@
-# Use NVIDIA CUDA base image
-FROM nvidia/cuda:12.9.1-devel-ubuntu22.04
+# Use official Ollama image as base
+FROM ollama/ollama:latest
 
 # Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+ENV OLLAMA_HOST=0.0.0.0
+ENV OLLAMA_ORIGINS=*
 
-# Install system dependencies
+# Install Python and basic dependencies
 RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
     python3 \
     python3-pip \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ollama
-RUN curl -fsSL https://ollama.ai/install.sh | sh
-
-# Install Python dependencies for the handler
+# Install Python packages
 RUN pip3 install requests runpod
 
 # Create working directory
 WORKDIR /app
 
-# Copy handler script and scripts
+# Copy handler script
 COPY ollama_handler.py .
-COPY test_input.json .
-COPY scripts/download_model.sh /tmp/download_model.sh
-COPY scripts/start.sh /tmp/start.sh
 
-# Make scripts executable
-RUN chmod +x /tmp/download_model.sh /tmp/start.sh
+# Create a simple startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting Ollama..."\n\
+ollama serve &\n\
+sleep 10\n\
+echo "Starting Python handler..."\n\
+python3 -u ollama_handler.py' > /tmp/start.sh && chmod +x /tmp/start.sh
 
-# Download model during build
-RUN ollama serve & \
-    OLLAMA_PID=$! && \
-    echo "Started Ollama service with PID: $OLLAMA_PID" && \
-    until ollama list >/dev/null 2>&1; do \
-        echo "Waiting for Ollama service to start..." && \
-        sleep 2; \
-    done && \
-    echo "Ollama service is ready, downloading model..." && \
-    /tmp/download_model.sh && \
-    echo "Model download completed" && \
-    kill $OLLAMA_PID && \
-    wait $OLLAMA_PID 2>/dev/null || true && \
-    echo "Ollama service stopped"
-    
+# Expose Ollama port
+EXPOSE 11434
 
-# Set the startup script
+# Use the simple startup script
 CMD ["/tmp/start.sh"] 

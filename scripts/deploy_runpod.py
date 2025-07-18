@@ -60,6 +60,7 @@ class RunPodDeployer:
             "input": {
                 "name": name,
                 "imageName": f"docker.io/{docker_image}",
+                "dockerArgs": config.get("dockerArgs") or "",
                 "containerDiskInGb": config.get("container_disk_gb", 30),
                 "volumeInGb": config.get("volume_gb", 0),
                 "volumeMountPath": config.get("volume_mount_path", "/workspace"),
@@ -208,23 +209,20 @@ class RunPodDeployer:
         """Test the endpoint with a simple request"""
         test_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
         
-        test_payload = {
+        # First, test health check
+        health_payload = {
             "input": {
-                "prompt": "Hello, this is a test. Please respond briefly.",
-                "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
-                "options": {
-                    "temperature": 0.7,
-                    "num_predict": 50
-                }
+                "type": "health"
             }
         }
         
-        print("🧪 Testing endpoint...")
+        print("🧪 Testing endpoint health...")
         
         try:
+            # Test health check first
             response = requests.post(
                 test_url,
-                json=test_payload,
+                json=health_payload,
                 headers=self.headers,
                 timeout=30
             )
@@ -234,13 +232,122 @@ class RunPodDeployer:
                 job_id = job_data.get("id")
                 
                 if job_id:
-                    print(f"✅ Test job submitted: {job_id}")
-                    return True
+                    print(f"✅ Health check job submitted: {job_id}")
+                    
+                    # Wait for health check job to complete
+                    print("⏳ Waiting for health check to complete...")
+                    max_wait = 60  # Wait up to 60 seconds
+                    wait_time = 0
+                    
+                    while wait_time < max_wait:
+                        status_response = requests.get(
+                            f"https://api.runpod.ai/v2/{endpoint_id}/status/{job_id}",
+                            headers=self.headers
+                        )
+                        
+                        if status_response.status_code == 200:
+                            status_data = status_response.json()
+                            status = status_data.get("status")
+                            
+                            if status == "COMPLETED":
+                                result = status_data.get("output")
+                                if result and result.get("ollama_ready"):
+                                    print("✅ Health check passed - Ollama is ready!")
+                                    break
+                                else:
+                                    print("⚠️  Health check completed but Ollama not ready")
+                                    return False
+                            elif status == "FAILED":
+                                print(f"❌ Health check failed: {status_data}")
+                                return False
+                            elif status == "IN_PROGRESS":
+                                print(f"⏳ Health check still in progress... ({wait_time}s)")
+                            else:
+                                print(f"⚠️  Unexpected status: {status}")
+                        
+                        time.sleep(5)
+                        wait_time += 5
+                    
+                    if wait_time >= max_wait:
+                        print("❌ Health check timed out")
+                        return False
+                    
+                    # Now test actual functionality
+                    test_payload = {
+                        "input": {
+                            "prompt": "Hello, this is a test. Please respond briefly.",
+                            "model": "CognitiveComputations/dolphin-mistral-nemo:latest",
+                            "options": {
+                                "temperature": 0.7,
+                                "num_predict": 50
+                            }
+                        }
+                    }
+                    
+                    print("🧪 Testing endpoint functionality...")
+                    response = requests.post(
+                        test_url,
+                        json=test_payload,
+                        headers=self.headers,
+                        timeout=60  # Longer timeout for model loading
+                    )
+                    
+                    if response.status_code == 200:
+                        job_data = response.json()
+                        job_id = job_data.get("id")
+                        
+                        if job_id:
+                            print(f"✅ Test job submitted: {job_id}")
+                            print("⏳ Waiting for test job to complete...")
+                            
+                            # Wait for test job to complete
+                            max_wait = 120  # Wait up to 2 minutes for model loading
+                            wait_time = 0
+                            
+                            while wait_time < max_wait:
+                                status_response = requests.get(
+                                    f"https://api.runpod.ai/v2/{endpoint_id}/status/{job_id}",
+                                    headers=self.headers
+                                )
+                                
+                                if status_response.status_code == 200:
+                                    status_data = status_response.json()
+                                    status = status_data.get("status")
+                                    
+                                    if status == "COMPLETED":
+                                        result = status_data.get("output")
+                                        if result and isinstance(result, str) and len(result) > 0:
+                                            print(f"✅ Test job completed successfully!")
+                                            print(f"Response: {result[:100]}...")
+                                            return True
+                                        else:
+                                            print(f"❌ Test job completed but no valid response: {result}")
+                                            return False
+                                    elif status == "FAILED":
+                                        error = status_data.get("error", "Unknown error")
+                                        print(f"❌ Test job failed: {error}")
+                                        return False
+                                    elif status == "IN_PROGRESS":
+                                        print(f"⏳ Test job still in progress... ({wait_time}s)")
+                                    else:
+                                        print(f"⚠️  Unexpected status: {status}")
+                                
+                                time.sleep(5)
+                                wait_time += 5
+                            
+                            print("❌ Test job timed out")
+                            return False
+                        else:
+                            print(f"❌ Test failed: {job_data}")
+                            return False
+                    else:
+                        print(f"❌ Functionality test failed: {response.status_code} - {response.text}")
+                        return False
                 else:
-                    print(f"❌ Test failed: {job_data}")
+                    print(f"❌ Health check failed: {job_data}")
                     return False
             else:
-                print(f"❌ Test failed: {response.status_code} - {response.text}")
+                print(f"❌ Health check failed: {response.status_code} - {response.text}")
                 return False
                 
         except Exception as e:
@@ -254,24 +361,31 @@ def load_config() -> Dict[str, Any]:
     
     if os.path.exists(config_file):
         with open(config_file, 'r') as f:
+            print("loading config from file")
             return json.load(f)
     
+    print("loading default config")
     # Default configuration
     return {
-        "template_name": "ollama-serverless-template",
-        "endpoint_name": "ollama-serverless-endpoint",
-        "container_disk_gb": 20,
+        "template_name": "o-s-t",
+        "endpoint_name": "o-s-e",
+        "container_disk_gb": 30,
         "volume_gb": 0,
         "volume_mount_path": "/workspace",
         "env": [
             {"key": "DEFAULT_MODEL", "value": "CognitiveComputations/dolphin-mistral-nemo:latest"},
             {"key": "PYTHONUNBUFFERED", "value": "1"},
             {"key": "OLLAMA_HOST", "value": "0.0.0.0"},
-            {"key": "OLLAMA_ORIGINS", "value": "*"}
+            {"key": "OLLAMA_ORIGINS", "value": "*"},
+            {"key": "OLLAMA_GPU_LAYERS", "value": "50"},
+            {"key": "OLLAMA_KEEP_ALIVE", "value": "5m"},
+            {"key": "OLLAMA_LOAD_TIMEOUT", "value": "5m"},
+            {"key": "CUDA_VISIBLE_DEVICES", "value": "0"}
         ],
         "ports": "11434/http",
         "start_jupyter": False,
         "start_ssh": False,
+        "dockerArgs": None,
         "gpu_ids": "AMPERE_16",
         "locations": "US",
         "idle_timeout": 5,
@@ -313,6 +427,7 @@ def main():
     
     # Create or update template
     template_id = deployer.get_existing_template(config["template_name"])
+    #template_id = None
     if template_id:
         print(f"📋 Using existing template: {template_id}")
     else:
@@ -345,12 +460,22 @@ def main():
     
     # Test endpoint
     print("\n⏳ Waiting for endpoint to be ready...")
-    time.sleep(10)  # Give it a moment to initialize
+    time.sleep(30)  # Give it more time to initialize
     
-    if deployer.test_endpoint(endpoint_id):
-        print("✅ Endpoint is working!")
-    else:
-        print("⚠️  Endpoint test failed, but endpoint was created")
+    # Try multiple times with increasing delays
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        print(f"\n🧪 Testing endpoint (attempt {attempt + 1}/{max_attempts})...")
+        
+        if deployer.test_endpoint(endpoint_id):
+            print("✅ Endpoint is working!")
+            break
+        else:
+            if attempt < max_attempts - 1:
+                print(f"⚠️  Test failed, waiting 30 seconds before retry...")
+                time.sleep(30)
+            else:
+                print("⚠️  Endpoint test failed after all attempts, but endpoint was created")
     
     # Output summary
     print("\n📊 Deployment Summary:")
