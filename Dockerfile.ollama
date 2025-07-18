@@ -19,19 +19,23 @@ RUN pip3 install requests runpod
 # Create working directory
 WORKDIR /app
 
-# Copy handler script
+# Copy handler script and test input
 COPY ollama_handler.py .
+COPY test_input.json .
+
+# Copy local models to the correct Ollama models directory structure
+COPY models/ /root/.ollama/models/
+
+# Set proper permissions for Ollama to access the models
+RUN chmod -R 755 /root/.ollama
 
 # Create a simple startup script
-RUN echo '#!/bin/bash\n\
-echo "Starting Ollama..."\n\
-ollama serve &\n\
-sleep 10\n\
-echo "Starting Python handler..."\n\
-python3 -u ollama_handler.py' > /tmp/start.sh && chmod +x /tmp/start.sh
+COPY start.sh /tmp/start.sh
+RUN chmod +x /tmp/start.sh
 
 # Expose Ollama port
 EXPOSE 11434
 
-# Use the simple startup script
+# Override the entrypoint and use our startup script
+ENTRYPOINT []
 CMD ["/tmp/start.sh"] 

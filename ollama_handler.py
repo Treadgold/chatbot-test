@@ -41,9 +41,27 @@ def handler(job):
         
         # Process the request
         prompt = job_input.get('prompt', 'Hello!')
-        model = job_input.get('model', 'CognitiveComputations/dolphin-mistral-nemo:latest')
+        model = job_input.get('model', 'dolphin-mistral-nemo:latest')
         
         print(f"Processing: {prompt}")
+        
+        # Check if model is available, if not pull it
+        try:
+            model_check = requests.get(f"http://localhost:11434/api/tags", timeout=5)
+            if model_check.status_code == 200:
+                models = model_check.json().get('models', [])
+                model_names = [m.get('name') for m in models]
+                if model not in model_names:
+                    print(f"Model {model} not found, pulling...")
+                    pull_response = requests.post(
+                        "http://localhost:11434/api/pull",
+                        json={"name": model},
+                        timeout=300
+                    )
+                    if pull_response.status_code != 200:
+                        return f"Error pulling model: {pull_response.status_code}"
+        except Exception as e:
+            print(f"Error checking/pulling model: {e}")
         
         payload = {
             "model": model,
