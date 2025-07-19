@@ -16,7 +16,7 @@ services:
       - OLLAMA_GPU_OVERHEAD=0
       - OLLAMA_FLASH_ATTENTION=true
     ports:
-      - "11434:11434"
+      - "11440:11434"
     volumes:
       - ollama_data:/root/.ollama
     deploy:
