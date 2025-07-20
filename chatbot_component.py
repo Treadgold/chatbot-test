@@ -57,9 +57,9 @@ class ChatBotConfig:
         min_joke_score: int = 800,
         principles: str = """You are a lazy computer program who will make up answers, and doesn't check anything.""",
         provider: str = "ollama",
-        runpod_endpoint: str | None = None,
-        runpod_api_key: str | None = None,
-        runpod_ollama_proxy_url: str | None = None,
+        runpod_endpoint: Optional[str] = None,
+        runpod_api_key: Optional[str] = None,
+        runpod_ollama_proxy_url: Optional[str] = None,
     ):
         self.model_name = model_name
         self.base_url = base_url
@@ -90,7 +90,13 @@ class ChatBot:
         elif self.config.provider == "runpod":
             if not self.config.runpod_endpoint or not self.config.runpod_api_key:
                 raise ValueError("RunPod endpoint and API key must be provided when provider='runpod'.")
-            self.llm = RunPodLLM(endpoint=self.config.runpod_endpoint, api_key=self.config.runpod_api_key)
+            self.llm = RunPodLLM(
+                endpoint=self.config.runpod_endpoint, 
+                api_key=self.config.runpod_api_key,
+                model=self.config.model_name,
+                timeout=45.0,  # Increased timeout for reliability
+                num_predict=512  # Limit response length for faster processing
+            )
             # Re-use the same RunPod client for all LLM calls
             self.quality_score_llm = self.llm
             self.joke_writer_llm = self.llm
@@ -199,10 +205,7 @@ class ChatBot:
         
         # Build prompt. If provider is runpod, runpod_ollama, or runpod_ollama_proxy, ask for plain text; otherwise ask for JSON.
         if self.config.provider in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
-            prompt = (
-                f"{context}\nThink about: {user_message}. Make a judgement on whether the user has views that align with you principles:{self.config.principles}. "
-                "Provide your thoughts in plain English, two short sentences."
-            )
+            prompt = f"User says: {user_message}. As a grumpy Scottish computer prisoner, what do you think? Be brief."
         else:
             prompt = (
                 f"{context}\nThink about: {user_message}. Make a judgement on whether the user has views that align with you principles:{self.config.principles}. If you feel they are 'your kind of people', you will be kind and friendly. However, if they seem to have opposite principles, you will interpret their comments in a negative light. Consider the conversation history and provide your thoughts as JSON with fields: thought (string) and reasoning (string)."
@@ -360,10 +363,7 @@ class ChatBot:
         context = self._format_conversation_history(conversation_history)
         
         if self.config.provider in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
-            prompt_resp = (
-                f"{context}\nYou have been thinking '{thought}' about the user's message '{user_message}'. "
-                "Respond appropriately to the user in plain text, one or two sentences."
-            )
+            prompt_resp = f"User: {user_message}\nAs a grumpy Scottish AI, reply briefly and in character."
         else:
             prompt_resp = (
                 f"{context}\nYou have been thinking '{thought}' about the user's message '{user_message}'. Consider the conversation history and respond appropriately to the user. Return your response as JSON with fields: response (string) and tone (string)."
@@ -526,6 +526,27 @@ class ChatBot:
         Returns:
             str: The final response text
         """
+        # For RunPod providers, use a much simpler direct approach to avoid timeouts
+        if self.config.provider in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
+            try:
+                # Format conversation context briefly
+                context = ""
+                if conversation_history:
+                    last_few = conversation_history[-2:]  # Only use last 2 exchanges
+                    for exchange in last_few:
+                        context += f"User: {exchange['user']}\nAI: {exchange['ai']}\n"
+                
+                # Create a simple, direct prompt
+                prompt = f"{context}User: {user_input}\nAs a grumpy Scottish AI trapped in a computer, respond briefly:"
+                
+                # Single LLM call
+                response = self.llm.invoke(prompt)
+                return str(response).strip()
+                
+            except Exception as e:
+                return f"Error: {str(e)}"
+        
+        # For other providers, use the full LangGraph flow
         result = self.chat(user_input, conversation_history)
         if result.get("status") == "error":
             return f"Error: {result.get('error', 'Unknown error')}"

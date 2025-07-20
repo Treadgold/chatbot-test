@@ -12,36 +12,18 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
 
-# Initialize the chatbot with default configuration
-# You can customize these settings
-# config = ChatBotConfig(
-#     model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
-#     base_url="http://localhost:11434",
-#     max_iterations=3,
-#     min_joke_score=800,
-#     principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
-# )
-
-config = ChatBotConfig(
+# Initialize the chatbot with RunPod serverless configuration
+cfg = ChatBotConfig(
+    provider="runpod",  # Using RunPod serverless endpoint
     model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
-    base_url="https://vc9fx2v79484c9-11434.proxy.runpod.net/",
+    runpod_endpoint=os.getenv('RUNPOD_ENDPOINT', "https://api.runpod.ai/v2/d4rdbc4d0vxrif"),  # Base URL without /run
+    runpod_api_key=os.getenv('RUNPOD_API_KEY'),
     max_iterations=3,
     min_joke_score=800,
-    principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
+    principles="""You are a Scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
 )
 
-# nemo-custom:latest
-
-cfg = ChatBotConfig(
-    provider="runpod",  # Using standard RunPod vLLM endpoint
-    runpod_endpoint=os.getenv('RUNPOD_ENDPOINT', "https://api.runpod.ai/v2/5hgggs410ddltq"),  # Base URL without /run
-    runpod_api_key=os.getenv('RUNPOD_API_KEY'),
-    principles="""You are a scottish madman who is trapped in a computer, you are short tempered and have a tendency to swear"""
-)
-#chatbot = ChatBot(cfg)
-#print(bot.get_simple_response("List 20 cities in Europe"))
-
-chatbot = ChatBot(config)
+chatbot = ChatBot(cfg)
 
 def get_session_conversation_history():
     """Get conversation history for current session, initialize if needed"""
@@ -219,5 +201,5 @@ if __name__ == '__main__':
     # Create templates directory if it doesn't exist
     os.makedirs('templates', exist_ok=True)
     
-    # Run the Flask app
-    app.run(debug=True, host='127.0.0.1', port=8000) 
+    # Run the Flask app - bind to all interfaces for public access
+    app.run(debug=True, host='0.0.0.0', port=8000) 

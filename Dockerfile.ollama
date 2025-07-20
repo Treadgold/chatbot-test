@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
-RUN pip3 install requests runpod
+RUN pip3 install --break-system-packages requests runpod
 
 # Create working directory
 WORKDIR /app
@@ -25,11 +25,17 @@ WORKDIR /app
 COPY ollama_handler.py .
 COPY test_input.json .
 
-# Copy local models to the correct Ollama models directory structure
+# Create the Ollama directory structure
+RUN mkdir -p /root/.ollama/models
+
+# Copy local models to the correct Ollama directory structure
+# This preserves the manifests/ and blobs/ structure
 COPY models/ /root/.ollama/models/
 
 # Set proper permissions for Ollama to access the models
-RUN chmod -R 755 /root/.ollama
+RUN chown -R root:root /root/.ollama && \
+    chmod -R 755 /root/.ollama && \
+    find /root/.ollama -type f -exec chmod 644 {} \;
 
 # Create a simple startup script
 COPY start.sh /tmp/start.sh

@@ -6,6 +6,7 @@ import runpod
 import requests
 import time
 import sys
+import json
 
 def check_ollama():
     """Check if Ollama is responding"""
@@ -14,6 +15,19 @@ def check_ollama():
         return response.status_code == 200
     except:
         return False
+
+def get_available_models():
+    """Get list of available models"""
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            models = data.get('models', [])
+            return [model.get('name', '') for model in models]
+        return []
+    except Exception as e:
+        print(f"Error getting models: {e}")
+        return []
 
 def handler(job):
     """Process incoming requests"""
@@ -24,44 +38,65 @@ def handler(job):
         # Handle health check
         if job_input.get('type') == 'health':
             ollama_ready = check_ollama()
+            available_models = get_available_models() if ollama_ready else []
             return {
                 "status": "healthy" if ollama_ready else "starting",
-                "ollama_ready": ollama_ready
+                "ollama_ready": ollama_ready,
+                "available_models": available_models
             }
         
         # Wait for Ollama to be ready
         print("Waiting for Ollama...")
-        for i in range(30):  # Wait up to 30 seconds
+        for i in range(60):  # Wait up to 60 seconds
             if check_ollama():
                 break
             time.sleep(1)
         
         if not check_ollama():
-            return {"error": "Ollama not ready"}
+            return {"error": "Ollama not ready after 60 seconds"}
+        
+        # Get available models for debugging
+        available_models = get_available_models()
+        print(f"Available models: {available_models}")
         
         # Process the request
         prompt = job_input.get('prompt', 'Hello!')
         model = job_input.get('model', 'dolphin-mistral-nemo:latest')
         
         print(f"Processing: {prompt}")
+        print(f"Requested model: {model}")
         
-        # Check if model is available, if not pull it
-        try:
-            model_check = requests.get(f"http://localhost:11434/api/tags", timeout=5)
-            if model_check.status_code == 200:
-                models = model_check.json().get('models', [])
-                model_names = [m.get('name') for m in models]
-                if model not in model_names:
-                    print(f"Model {model} not found, pulling...")
+        # Check if the requested model is available
+        if model not in available_models:
+            print(f"Model {model} not found in available models: {available_models}")
+            
+            # Try to find a similar model name
+            model_base = model.split(':')[0] if ':' in model else model
+            similar_models = [m for m in available_models if model_base in m]
+            
+            if similar_models:
+                alternative_model = similar_models[0]
+                print(f"Using alternative model: {alternative_model}")
+                model = alternative_model
+            else:
+                print(f"No similar models found. Attempting to pull {model}...")
+                try:
                     pull_response = requests.post(
                         "http://localhost:11434/api/pull",
                         json={"name": model},
                         timeout=300
                     )
                     if pull_response.status_code != 200:
-                        return f"Error pulling model: {pull_response.status_code}"
-        except Exception as e:
-            print(f"Error checking/pulling model: {e}")
+                        return {
+                            "error": f"Model {model} not available and pull failed: {pull_response.status_code}",
+                            "available_models": available_models
+                        }
+                    print(f"Successfully pulled model: {model}")
+                except Exception as e:
+                    return {
+                        "error": f"Model {model} not available and pull failed: {str(e)}",
+                        "available_models": available_models
+                    }
         
         payload = {
             "model": model,
@@ -73,6 +108,7 @@ def handler(job):
             }
         }
         
+        print(f"Sending request to Ollama with model: {model}")
         response = requests.post(
             "http://localhost:11434/api/generate",
             json=payload,
@@ -81,13 +117,25 @@ def handler(job):
         
         if response.status_code == 200:
             result = response.json()
-            return result.get("response", "")
+            return {
+                "response": result.get("response", ""),
+                "model_used": model,
+                "available_models": available_models
+            }
         else:
-            return f"Error: {response.status_code}"
+            return {
+                "error": f"Generation failed: {response.status_code}",
+                "response_text": response.text,
+                "model_used": model,
+                "available_models": available_models
+            }
             
     except Exception as e:
         print(f"Error: {e}")
-        return f"Handler error: {str(e)}"
+        return {
+            "error": f"Handler error: {str(e)}",
+            "available_models": get_available_models()
+        }
 
 if __name__ == '__main__':
     print("Starting RunPod handler...")

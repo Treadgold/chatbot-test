@@ -386,11 +386,11 @@ def load_config() -> Dict[str, Any]:
         "start_jupyter": False,
         "start_ssh": False,
         "dockerArgs": None,
-        "gpu_ids": "AMPERE_16",
+        "gpu_ids": "AMPERE_24",
         "locations": "US",
-        "idle_timeout": 5,
+        "idle_timeout": 60,
         "workers_min": 0,
-        "workers_max": 3,
+        "workers_max": 1,
         "jobs_per_worker": 1
     }
 

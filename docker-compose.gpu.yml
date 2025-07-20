@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.3'
 
 services:
   ollama-gpu:
@@ -6,7 +6,6 @@ services:
       context: .
       dockerfile: Dockerfile.ollama
     container_name: ollama-gpu-server
-    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -19,20 +18,12 @@ services:
       - "11440:11434"
     volumes:
       - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
 
 volumes:
   ollama_data:

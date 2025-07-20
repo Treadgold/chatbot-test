@@ -171,6 +171,9 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
+        let loadingTimer;
+        let loadingStartTime;
+
         function showLoading() {
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'message bot-message loading';
@@ -178,12 +181,23 @@
             loadingDiv.textContent = 'AI is thinking...';
             chatContainer.appendChild(loadingDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Start timer to show elapsed time
+            loadingStartTime = Date.now();
+            loadingTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - loadingStartTime) / 1000);
+                loadingDiv.textContent = `AI is thinking... (${elapsed}s)`;
+            }, 1000);
         }
 
         function hideLoading() {
             const loadingDiv = document.getElementById('loading-message');
             if (loadingDiv) {
                 loadingDiv.remove();
+            }
+            if (loadingTimer) {
+                clearInterval(loadingTimer);
+                loadingTimer = null;
             }
         }
 
@@ -212,6 +226,10 @@
             showLoading();
 
             try {
+                // Create AbortController for custom timeout (60 seconds)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {
@@ -219,9 +237,11 @@
                     },
                     body: JSON.stringify({
                         message: message
-                    })
+                    }),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 const data = await response.json();
                 
                 if (data.error) {
@@ -234,7 +254,11 @@
                     }
                 }
             } catch (error) {
-                addMessage('Error: Could not connect to the server');
+                if (error.name === 'AbortError') {
+                    addMessage('Error: Request timed out after 60 seconds. The AI may be experiencing heavy load.');
+                } else {
+                    addMessage('Error: Could not connect to the server');
+                }
             } finally {
                 hideLoading();
                 messageInput.disabled = false;

@@ -1,5 +1,5 @@
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 
@@ -15,21 +15,23 @@ class RunPodLLM:
         self,
         endpoint: str,
         api_key: str,
+        model: str = "CognitiveComputations/dolphin-mistral-nemo:latest",
         poll_interval: float = 1.0,
         timeout: float = 120.0,  # Increased from 60 to 120 seconds
-        temperature: float | None = 0.7,
-        max_tokens: int | None = 512,
-        top_p: float | None = 0.9,
-        repetition_penalty: float | None = 1.1,
+        temperature: Union[float, None] = 0.75,
+        num_predict: Union[int, None] = 1024,
+        top_p: Union[float, None] = 0.9,
+        repetition_penalty: Union[float, None] = 1.1,
     ) -> None:
         """Args:
         endpoint: Base URL of the RunPod endpoint *without* a trailing slash, e.g.
                   ``"https://api.runpod.ai/v2/abcd1234"```.
         api_key:  RunPod API key ("Bearer …").
+        model: Model name to use (default: "CognitiveComputations/dolphin-mistral-nemo:latest").
         poll_interval: Seconds between status polls (default: 1.0).
-        timeout: Max seconds to wait for job completion (default: 60.0).
-        temperature: Sampling temperature for text generation (default: 0.7).
-        max_tokens: Maximum tokens to generate (default: 512).
+        timeout: Max seconds to wait for job completion (default: 120.0).
+        temperature: Sampling temperature for text generation (default: 0.75).
+        num_predict: Maximum tokens to generate (default: 1024).
         top_p: Top-p sampling parameter (default: 0.9).
         repetition_penalty: Penalty for repeated tokens (default: 1.1).
         """
@@ -37,19 +39,20 @@ class RunPodLLM:
             endpoint = endpoint[:-1]
         self.endpoint = endpoint
         self.api_key = api_key
+        self.model = model
         self.poll_interval = poll_interval
         self.timeout = timeout
 
-        # Improved generation parameters
+        # Generation parameters
         self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.num_predict = num_predict
         self.top_p = top_p
         self.repetition_penalty = repetition_penalty
 
     # ---------------------------------------------------------------------
     # Public LLM-like interface
     # ---------------------------------------------------------------------
-    def invoke(self, prompt: str, config: Optional[Dict[str, Any]] | None = None) -> str:
+    def invoke(self, prompt: str, config: Optional[Dict[str, Any]] = None) -> str:
         """Synchronously generate a completion for *prompt*.
 
         The *config* argument is accepted for API compatibility but is currently
@@ -70,79 +73,33 @@ class RunPodLLM:
 
     def _submit_job(self, prompt: str) -> str:
         """Submit the prompt and return the RunPod job ID."""
-        # Build sampling parameters with improved defaults
-        sampling_params: Dict[str, Any] = {}
+        # Build options with the format expected by the serverless endpoint
+        options: Dict[str, Any] = {}
         if self.temperature is not None:
-            sampling_params["temperature"] = self.temperature
-        if self.max_tokens is not None:
-            sampling_params["max_tokens"] = self.max_tokens
+            options["temperature"] = self.temperature
+        if self.num_predict is not None:
+            options["num_predict"] = self.num_predict
         if self.top_p is not None:
-            sampling_params["top_p"] = self.top_p
+            options["top_p"] = self.top_p
         if self.repetition_penalty is not None:
-            sampling_params["repetition_penalty"] = self.repetition_penalty
-        
-        # Add stop sequences to prevent runaway generation
-        sampling_params["stop"] = ["\n\nUser:", "\n\nHuman:", "\n\nAssistant:", "</s>", "<|im_end|>"]
+            options["repetition_penalty"] = self.repetition_penalty
 
-        # Format prompt properly for better vLLM inference
-        formatted_prompt = self._format_prompt(prompt)
-        
+        # Format the payload according to the user's specification
         payload = {
             "input": {
-                "prompt": formatted_prompt,
-                "sampling_params": sampling_params
+                "prompt": prompt,
+                "model": self.model,
+                "options": options
             }
-        }
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
         }
 
         response = requests.post(
             f"{self.endpoint}/run",
             json=payload,
-            headers=headers
+            headers=self._headers()
         )
         response.raise_for_status()
         return response.json()["id"]
-    
-    def _format_prompt(self, prompt: str) -> str:
-        """Format the prompt for better vLLM inference.
-        
-        This model seems to work better with very simple, direct roleplay instructions.
-        We'll completely rewrite complex prompts into simple character instructions.
-        """
-        # If the prompt already looks like it has chat formatting, use as-is
-        if any(marker in prompt.lower() for marker in ["[inst]", "<s>", "system:", "user:", "assistant:"]):
-            return prompt
-        
-        # For any prompt mentioning Scottish madman, create a simple roleplay instruction
-        if "scottish" in prompt.lower() and "madman" in prompt.lower():
-            # Try to extract the actual user message
-            user_message = "Hello there!"  # default
-            
-            # Look for various patterns to extract the user's actual message
-            if "user message:" in prompt.lower():
-                parts = prompt.split("User message:")
-                if len(parts) > 1:
-                    msg_part = parts[1].strip()
-                    # Get the first sentence/phrase
-                    user_message = msg_part.split('.')[0].split('!')[0].split('?')[0].strip()
-            elif "hello" in prompt.lower():
-                user_message = "Hello there!"
-            elif "think about:" in prompt.lower():
-                parts = prompt.split("Think about:")
-                if len(parts) > 1:
-                    msg_part = parts[1].strip()
-                    user_message = msg_part.split('.')[0].split('!')[0].split('?')[0].strip()
-            
-            # Create a simple, direct roleplay instruction
-            formatted = f"""Roleplay as an angry Scottish man trapped inside a computer. You are short-tempered and swear frequently. A user says: "{user_message}". Reply in character with 1-2 short sentences. Be grumpy and Scottish."""
-            return formatted
-        
-        # For everything else, return as-is
-        return prompt
 
     def _wait_for_completion(self, job_id: str) -> Any:
         """Poll the job until it completes and return the *output* field."""
@@ -167,8 +124,17 @@ class RunPodLLM:
 
     def _extract_text(self, output: Any) -> str:
         """Best-effort extraction of generated text from RunPod *output*."""
-        # The exact shape depends on the model container. Common patterns are
-        # shown below and handled heuristically.
+        # For Ollama-based endpoints, the output is typically a dict with a "response" field
+        if isinstance(output, dict):
+            # Try to extract from common Ollama response patterns
+            if "response" in output:
+                return output["response"]
+            if "text" in output:
+                return output["text"]
+            if "content" in output:
+                return output["content"]
+        
+        # Handle list output (multiple responses)
         if isinstance(output, list) and output:
             first = output[0]
             if isinstance(first, dict):
@@ -185,7 +151,21 @@ class RunPodLLM:
                 text_val = first.get("text")
                 if isinstance(text_val, str):
                     return text_val
+                # Pattern 3: {"response": ""} (Ollama format)
+                response_val = first.get("response")
+                if isinstance(response_val, str):
+                    return response_val
             # Fallback: stringify first element.
             return str(first)
+        
         # Fallback: stringify entire output.
         return str(output)
+
+    # Additional methods to maintain compatibility with LangChain interface
+    def __call__(self, prompt: str, **kwargs) -> str:
+        """Alternative calling interface for compatibility."""
+        return self.invoke(prompt)
+    
+    def predict(self, text: str) -> str:
+        """Another compatibility method."""
+        return self.invoke(text)
