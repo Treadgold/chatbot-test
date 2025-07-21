@@ -103,7 +103,7 @@ def handler(job):
         # Build payload with client options, providing sensible defaults
         ollama_options = {
             "temperature": options.get("temperature", 0.7),
-            "num_predict": options.get("num_predict", 512),  # Default 512, 0 means unlimited
+            "num_predict": options.get("num_predict", 0),  # Default 512, 0 means unlimited
             "top_p": options.get("top_p", 0.9),
             "repetition_penalty": options.get("repetition_penalty", 1.1)
         }

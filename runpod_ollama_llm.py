@@ -43,7 +43,7 @@ class RunPodOllamaLLM:
                     "stream": False,
                     "options": {
                         "temperature": 0.7,
-                        "num_predict": 500,  # Reasonable default
+                        "num_predict": 0,  # Reasonable default
                     }
                 }
             }

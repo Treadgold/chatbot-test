@@ -8,6 +8,11 @@ from runpod_ollama_llm import RunPodOllamaLLM
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, Dict, List, Any
 
+import logging
+
+# Ensure logging is configured
+logging.basicConfig(level=logging.DEBUG)
+
 class Generated_Joke(BaseModel):
     joke: str = Field(description="The generated joke")
     num_words: int = Field(description="The number of words in the generated joke")
@@ -97,7 +102,7 @@ class ChatBot:
                 api_key=self.config.runpod_api_key,
                 model=self.config.model_name,
                 timeout=0,  # No timeout - wait indefinitely
-                num_predict=0  # Let the model decide its own response length
+                num_predict=4096  # Let the model decide its own response length
             )
             # Re-use the same RunPod client for all LLM calls
             self.quality_score_llm = self.llm
@@ -132,7 +137,7 @@ class ChatBot:
             return "This is the start of the conversation."
         
         formatted = "Previous conversation:\n"
-        for i, exchange in enumerate(history[-5:], 1):  # Only include last 5 exchanges
+        for i, exchange in enumerate(history[-10:], 1):  # Only include last 5 exchanges
             formatted += f"{i}. User: {exchange['user']}\n"
             formatted += f"   AI: {exchange['ai']}\n"
         formatted += "\nCurrent message:"
@@ -182,6 +187,11 @@ class ChatBot:
         attempt to parse. For RunPod providers we fall back to plain text because most
         vLLM workers or custom handlers may not support LangChain's format spec.
         """
+
+        # Log the number of tokens in the prompt
+        num_tokens = len(prompt.split())  # Simple token count based on whitespace
+        logging.debug(f"Number of tokens in prompt: {num_tokens}")
+
         if model_cls and self.config.provider not in ["runpod", "runpod_ollama", "runpod_ollama_proxy"]:
             raw = self.llm.invoke(prompt, config={"format": model_cls.model_json_schema()})
             try:
@@ -345,7 +355,7 @@ class ChatBot:
                 # Fallback: Create a simple response structure if JSON parsing fails
                 response_text = str(combined_response_result)
                 combined_structured_response = Response(
-                    response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
+                    response=response_text, #[:500] + "..." if len(response_text) > 500 else response_text,
                     tone="aggressive"
                 )
             
@@ -383,7 +393,7 @@ class ChatBot:
             # Fallback: Create a simple response structure if JSON parsing fails
             response_text = str(response_result)
             structured_response = Response(
-                response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
+                response=response_text, #[:500] + "..." if len(response_text) > 500 else response_text,
                 tone="friendly"
             )
         
@@ -422,7 +432,7 @@ class ChatBot:
             # Fallback: Create a simple response structure if JSON parsing fails
             response_text = str(final_response_result)
             final_structured_response = Response(
-                response=response_text[:500] + "..." if len(response_text) > 500 else response_text,
+                response=response_text, #[:500] + "..." if len(response_text) > 500 else response_text,
                 tone="aggressive"
             )
         

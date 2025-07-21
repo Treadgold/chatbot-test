@@ -26,8 +26,12 @@
             background: #6772e5;
             color: white;
             padding: 15px 20px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
             flex-shrink: 0;
+            gap: 20px;
+            padding-left: 30px;
         }
         .header h1 {
             margin: 0;
@@ -37,6 +41,12 @@
             margin: 5px 0 0 0;
             font-size: 0.9rem;
             opacity: 0.9;
+            text-align: center;
+        }
+        .header-icon {
+            width: 56px;
+            height: 56px;
+            flex-shrink: 0;
         }
         .session-info {
             background: #e9ecef;
@@ -239,8 +249,11 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>AI Scotsman - Chat Demo</h1>
-            <p>Chat with the AI assistant!</p>
+            <img src="{{ url_for('static', filename='scots_gimp_purple.png') }}" alt="AI Scotsman" class="header-icon">
+            <div>
+                <h1>AI Scotsman - Chat Demo</h1>
+                <p>Chat with the AI assistant!</p>
+            </div>
         </div>
         
         <div class="session-info" id="session-info">
@@ -332,9 +345,9 @@
                 const minutes = Math.floor(elapsed / 60);
                 const seconds = elapsed % 60;
                 if (minutes > 0) {
-                    loadingDiv.textContent = `AI is thinking... (${minutes}m ${seconds}s) - Please wait, no timeout configured`;
+                    loadingDiv.textContent = `AI is thinking... (${minutes}m ${seconds}s) - Please wait...`;
                 } else {
-                    loadingDiv.textContent = `AI is thinking... (${seconds}s) - Please wait, no timeout configured`;
+                    loadingDiv.textContent = `AI is thinking... (${seconds}s) - Please wait...`;
                 }
             }, 1000);
         }
@@ -497,7 +510,7 @@
                 
                 if (data.status === 'success') {
                     // Clear the chat display
-                    chatContainer.innerHTML = '<div class="message bot-message">Hello! I\'m your AI assistant. How can I help you today?</div>';
+                    chatContainer.innerHTML = '<div class="message bot-message">I\'m Fergus, what dae ye want?</div>';
                     updateSessionInfo(null, 0);
                 } else {
                     alert('Error clearing conversation: ' + (data.error || 'Unknown error'));
@@ -533,12 +546,12 @@
                     });
                 } else {
                     // No history, keep the default greeting
-                    chatContainer.innerHTML = '<div class="message bot-message">Hello! I\'m your AI assistant. How can I help you today?</div>';
+                    chatContainer.innerHTML = '<div class="message bot-message">I\'m Fergus, what dae ye want?</div>';
                 }
             } catch (error) {
                 console.log('Could not load session info:', error);
                 // Fallback to default greeting if there's an error
-                chatContainer.innerHTML = '<div class="message bot-message">Hello! I\'m your AI assistant. How can I help you today?</div>';
+                chatContainer.innerHTML = '<div class="message bot-message">I\'m Fergus, what dae ye want?</div>';
             }
             
             // Focus on input after load

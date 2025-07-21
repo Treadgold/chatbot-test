@@ -1,6 +1,6 @@
 {
-  "template_name": "o-s-t-small",
-  "endpoint_name": "o-s-e-small",
+  "template_name": "o-s-t-long",
+  "endpoint_name": "o-s-e-long",
   "container_disk_gb": 30,
   "volume_gb": 0,
   "volume_mount_path": "/workspace",

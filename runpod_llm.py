@@ -19,7 +19,7 @@ class RunPodLLM:
         poll_interval: float = 1.0,
         timeout: float = 0,  # No timeout - wait indefinitely
         temperature: Union[float, None] = 0.75,
-        num_predict: Union[int, None] = 512,  # Reduced from 1024 to 512
+        num_predict: Union[int, None] = 2048,  # Reduced from 1024 to 512
         top_p: Union[float, None] = 0.9,
         repetition_penalty: Union[float, None] = 1.1,
     ) -> None:

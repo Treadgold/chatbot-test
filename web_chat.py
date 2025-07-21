@@ -53,6 +53,10 @@ if LIMITER_AVAILABLE:
 else:
     limiter = None
 
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.ico')
+
 # Security middleware to block common attack patterns
 @app.before_request
 def block_malicious_requests():
@@ -89,7 +93,7 @@ def add_security_headers(response):
     return response
 
 # Input validation decorator
-def validate_input(max_length=1000):
+def validate_input(max_length=2048):
     """Decorator to validate and sanitize input"""
     def decorator(f):
         @wraps(f)
@@ -118,7 +122,7 @@ cfg = ChatBotConfig(
     provider="runpod",  # Using RunPod serverless endpoint
     model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
     runpod_endpoint=os.getenv('RUNPOD_ENDPOINT',
-                            "https://api.runpod.ai/v2/yrcrfoj3hqz9a9"),  # Base URL without /run
+                            "https://api.runpod.ai/v2/vsgzvmdz6x1bei"),  # Base URL without /run
     runpod_api_key=os.getenv('RUNPOD_API_KEY'),
     max_iterations=3,
     min_joke_score=800,
