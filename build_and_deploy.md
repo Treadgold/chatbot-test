@@ -55,9 +55,55 @@ response = bot.get_simple_response("Hello!")
 print(response)
 ```
 
-## Step 4: Test the Deployment
+## Step 4: Configure Environment Variables
 
-Test the endpoint directly:
+Create or update your `.env` file with your RunPod details:
+
+```bash
+# RunPod Configuration
+RUNPOD_ENDPOINT=https://api.runpod.ai/v2/YOUR_ENDPOINT_ID
+RUNPOD_API_KEY=your_runpod_api_key
+
+# Flask Configuration
+FLASK_SECRET_KEY=your-secret-key-here
+FLASK_ENV=production
+```
+
+## Step 5: Start the Web Application
+
+### Option 1: Using uvicorn (Recommended for Production)
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start with uvicorn ASGI server
+uvicorn asgi:application --host 0.0.0.0 --port 8000
+
+# For development with auto-reload
+uvicorn asgi:application --host 0.0.0.0 --port 8000 --reload
+```
+
+### Option 2: Using Flask Development Server
+
+```bash
+# Start with Flask built-in server (development only)
+python web_chat.py
+```
+
+### Access Your Application
+
+- **Local**: http://localhost:8000
+- **Production**: http://your-server-ip:8000
+
+## Step 6: Test the Complete Setup
+
+### Test the Web Interface
+1. Open your browser and go to http://localhost:8000
+2. Type a message in the chat interface
+3. Verify you get a response from your RunPod backend
+
+### Test the RunPod Endpoint Directly
 
 ```python
 import requests

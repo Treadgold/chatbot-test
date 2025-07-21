@@ -30,9 +30,9 @@ A LangGraph-based chatbot that can run locally with Ollama or on RunPod serverle
 
 4. Open http://localhost:5000
 
-## RunPod Serverless Deployment
+## Complete Deployment Guide
 
-### 1. Build and Push Docker Image
+### Step 1: Build and Push Docker Image for RunPod Backend
 
 ```bash
 # Build the Ollama serverless image
@@ -42,28 +42,69 @@ docker build -f Dockerfile.ollama -t yourusername/runpod-ollama:latest .
 docker push yourusername/runpod-ollama:latest
 ```
 
-### 2. Create RunPod Endpoint
+### Step 2: Create RunPod Serverless Endpoint
 
 1. Go to [RunPod Console](https://www.runpod.io/) → **Serverless**
 2. Click **New Endpoint**
-3. Use your Docker image: `yourusername/runpod-ollama:latest`
-4. Configure GPU settings based on your model size
-5. Set timeout to 600 seconds (10 minutes)
+3. Configure the endpoint:
+   - **Docker Image**: `yourusername/runpod-ollama:latest`
+   - **Container Disk**: 20GB (minimum for most models)
+   - **GPU Type**: Select based on your model (RTX 4090 recommended for 7B-13B models)
+   - **Max Execution Time**: 600 seconds (10 minutes)
+   - **Idle Timeout**: 5 seconds
+   - **Workers Min**: 0, **Workers Max**: 1-3
+4. Click **Create Endpoint**
+5. **Copy the Endpoint ID** from the URL (e.g., `vsgzvmdz6x1bei`)
 
-### 3. Update Configuration
+### Step 3: Configure Environment Variables
+
+Create or update your `.env` file:
+
+```bash
+# RunPod Configuration
+RUNPOD_ENDPOINT=https://api.runpod.ai/v2/YOUR_ENDPOINT_ID
+RUNPOD_API_KEY=your_runpod_api_key
+
+# Flask Configuration  
+FLASK_SECRET_KEY=your-secret-key-here
+FLASK_ENV=production
+```
+
+### Step 4: Install Dependencies and Start Web Application
+
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Start the web application with uvicorn (recommended for production)
+uvicorn asgi:application --host 0.0.0.0 --port 8000
+
+# Alternative: Start with Flask development server
+python web_chat.py
+```
+
+### Step 5: Access Your Chat Application
+
+Open your browser and navigate to:
+- **Local**: http://localhost:8000
+- **Production**: http://your-server-ip:8000
+
+## Configuration Options
+
+### RunPod Backend Configuration
+
+Update `web_chat.py` if needed:
 
 ```python
-from chatbot_component import ChatBot, ChatBotConfig
-
 cfg = ChatBotConfig(
-    provider="runpod_ollama",
-    runpod_endpoint="https://api.runpod.ai/v2/YOUR_ENDPOINT_ID",
-    runpod_api_key="your_runpod_api_key",
-    model_name="CognitiveComputations/dolphin-mistral-nemo:latest"
+    provider="runpod",  # Using RunPod serverless endpoint
+    model_name="CognitiveComputations/dolphin-mistral-nemo:latest",
+    runpod_endpoint=os.getenv('RUNPOD_ENDPOINT', 
+                            "https://api.runpod.ai/v2/YOUR_ENDPOINT_ID"),
+    runpod_api_key=os.getenv('RUNPOD_API_KEY'),
+    max_iterations=3,
+    timeout=0  # No timeout - wait indefinitely
 )
-
-bot = ChatBot(cfg)
-response = bot.get_simple_response("Hello!")
 ```
 
 ## Files
