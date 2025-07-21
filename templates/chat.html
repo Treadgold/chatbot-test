@@ -11,16 +11,22 @@
             padding: 0;
             background-color: #f5f5f5;
             height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for better mobile support */
             overflow: hidden;
+            /* Prevent elastic scrolling on iOS */
+            position: fixed;
+            width: 100%;
         }
         .container {
             display: flex;
             flex-direction: column;
             height: 100vh;
+            height: 100dvh; /* Dynamic viewport height */
             max-width: 800px;
             margin: 0 auto;
             background: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
         }
         .header {
             background: #6772e5;
@@ -32,6 +38,8 @@
             flex-shrink: 0;
             gap: 20px;
             padding-left: 30px;
+            position: relative;
+            z-index: 10;
         }
         .header h1 {
             margin: 0;
@@ -55,6 +63,8 @@
             color: #666;
             border-bottom: 1px solid #eee;
             flex-shrink: 0;
+            position: relative;
+            z-index: 9;
         }
         .chat-container {
             flex: 1;
@@ -62,6 +72,8 @@
             padding: 20px;
             min-height: 0;
             -webkit-overflow-scrolling: touch;
+            /* Ensure smooth scrolling on iOS */
+            scroll-behavior: smooth;
         }
         .message {
             margin-bottom: 15px;
@@ -94,6 +106,10 @@
             border-top: 1px solid #eee;
             background: white;
             flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+            /* Add safe area padding for devices with notches/rounded corners */
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
         }
         .input-row {
             display: flex;
@@ -195,14 +211,33 @@
 
         /* Mobile optimizations */
         @media (max-width: 768px) {
+            body {
+                /* Prevent bounce scrolling on iOS */
+                overscroll-behavior: none;
+                -webkit-overflow-scrolling: touch;
+            }
+            
             .container {
                 max-width: none;
                 border-radius: 0;
                 box-shadow: none;
+                /* Use fixed positioning to ensure header/footer stay visible */
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
             }
+            
             .header {
                 padding: 12px 15px;
+                /* Ensure header stays at top */
+                position: sticky;
+                top: 0;
+                /* Add safe area padding for devices with notches */
+                padding-top: calc(12px + env(safe-area-inset-top));
             }
+            
             .header h1 {
                 font-size: 1.3rem;
             }
@@ -212,9 +247,14 @@
             .session-info {
                 padding: 6px 15px;
                 font-size: 11px;
+                /* Keep session info sticky with header */
+                position: sticky;
+                top: calc(70px + env(safe-area-inset-top)); /* Adjust based on header height */
             }
             .chat-container {
                 padding: 15px;
+                /* Account for fixed header and footer */
+                padding-bottom: 20px;
             }
             .message {
                 max-width: 90%;
@@ -222,6 +262,13 @@
             }
             .input-container {
                 padding: 12px 15px;
+                /* Ensure input stays at bottom */
+                position: sticky;
+                bottom: 0;
+                /* Add extra padding for mobile navigation bars */
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
+                /* Add slight shadow to separate from chat */
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
             }
             #message-input {
                 font-size: 16px; /* Prevents zoom on iOS */
@@ -233,6 +280,8 @@
             }
             .demo-section {
                 padding: 12px 15px;
+                /* Ensure demo section is above mobile nav */
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
             }
             .payment-demo {
                 font-size: 0.8rem;
@@ -249,6 +298,31 @@
                 display: block;
                 margin: 5px 0;
                 text-align: center;
+            }
+            
+            .header {
+                padding-left: 15px;
+                gap: 15px;
+            }
+            
+            .header-icon {
+                width: 48px;
+                height: 48px;
+            }
+        }
+
+        /* Support for browsers that don't support env() */
+        @supports not (padding: max(0px)) {
+            @media (max-width: 768px) {
+                .header {
+                    padding-top: 12px;
+                }
+                .input-container {
+                    padding-bottom: 12px;
+                }
+                .demo-section {
+                    padding-bottom: 12px;
+                }
             }
         }
     </style>
