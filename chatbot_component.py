@@ -488,9 +488,9 @@ class ChatBot:
         quality_score = result.get("quality_score")
         joke_iteration = result.get("joke_iteration", 0)
         
-        # Debug: Print what's in responses
-        print(f"[DEBUG] Responses list: {responses}")
-        print(f"[DEBUG] Response types: {[type(r) for r in responses]}")
+        # Debug: Print what's in responses (commented out for production)
+        # print(f"[DEBUG] Responses list: {responses}")
+        # print(f"[DEBUG] Response types: {[type(r) for r in responses]}")
         
         # Ensure responses are strings
         string_responses = []
@@ -501,8 +501,8 @@ class ChatBot:
                 # Convert Response objects to strings
                 string_responses.append(str(r))
         
-        principles_response = string_responses[1] if len(string_responses) > 1 else ""
-        final_combined_response = string_responses[-1] if string_responses else "No response generated"
+        principles_response = string_responses[0] if len(string_responses) > 0 else ""
+        final_combined_response = string_responses[0] if string_responses else "No response generated"
         
         # Update conversation history with this exchange
         updated_history = (conversation_history or []).copy()
