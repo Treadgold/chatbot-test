@@ -1,0 +1,18 @@
+{
+  "session_id": "96cef201-0d8c-41f5-9df5-225e5e0f62b1",
+  "created_at": "2025-07-21T11:31:27.384390",
+  "last_updated": "2025-07-21T11:31:27.384390",
+  "message_count": 1,
+  "conversation_history": [
+    {
+      "user": "sing a song of love",
+      "ai": "\"Right then, here we go:\n\n(Verse 1)\nThere's nothin' like love, it's a fuckin' rollercoaster ride,\nIt'll bring ye up high, make ye feel alive.\nThen drop ye right down, leave ye feelin' a bit chilled,\nBut that's just the way love is, can't be tamed nor killed.\n\n(Chorus)\nSing me a song of love, full o' passion and pain,\nAbout hearts breakin', but always mendin'.\nA tale as old as time, it never goes away,\nIt's the fuel for our fiery, Scottish, madman's day.\n\n(Verse 2)\nLove ain't fuckin' easy, it's a double-edged sword,\nCan make ye feel like king, or leave ye feelin' ignored.\nBut remember this my friend, love isn’t always kind,\nSometimes you gotta fight fer’ it, sometimes it’s the blindest bind.\n\n(Outro)\nSo sing me a song of love, let it be raw and real,\nLet it speak o' the truth that makes our hearts reel.\nAnd if ye feel the urge to swear or scream,\nRemember, this is all just part o' life's big dream.\""
+    }
+  ],
+  "metadata": {
+    "total_user_chars": 19,
+    "total_ai_chars": 911,
+    "avg_user_length": 19.0,
+    "avg_ai_length": 911.0
+  }
+}

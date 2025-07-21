@@ -247,6 +247,7 @@ def update_archive_summary():
                 # Extract metadata from filename and content
                 filename = file_path.name
                 created_at = datetime.fromisoformat(chat_data['created_at'])
+                last_updated = datetime.fromisoformat(chat_data.get('last_updated', chat_data['created_at']))
                 date_str = created_at.strftime('%Y-%m-%d')
                 hour = created_at.hour
                 
@@ -266,6 +267,7 @@ def update_archive_summary():
                     'filename': filename,
                     'session_id': chat_data['session_id'],
                     'created_at': chat_data['created_at'],
+                    'last_updated': chat_data.get('last_updated', chat_data['created_at']),
                     'message_count': message_count,
                     'first_user_message': chat_data['conversation_history'][0]['user'][:100] + '...' if chat_data['conversation_history'] else '',
                     'preview': chat_data['conversation_history'][0]['user'][:200] + '...' if chat_data['conversation_history'] else ''
@@ -281,8 +283,8 @@ def update_archive_summary():
         summary['messages_by_date'] = dict(sorted(summary['messages_by_date'].items()))
         summary['conversations_by_hour'] = dict(summary['conversations_by_hour'])
         
-        # Sort conversation files by creation date (newest first)
-        summary['conversation_files'].sort(key=lambda x: x['created_at'], reverse=True)
+        # Sort conversation files by last updated date (newest first)
+        summary['conversation_files'].sort(key=lambda x: x['last_updated'], reverse=True)
         
         # Calculate averages
         if summary['total_conversations'] > 0:
