@@ -1,0 +1,55 @@
+{
+  "last_updated": "2025-07-21T10:59:48.875661",
+  "total_conversations": 4,
+  "total_messages": 6,
+  "total_user_chars": 285,
+  "total_ai_chars": 3161,
+  "conversations_by_date": {
+    "2025-07-21": 4
+  },
+  "messages_by_date": {
+    "2025-07-21": 6
+  },
+  "conversations_by_hour": {
+    "10": 2,
+    "8": 1,
+    "9": 1
+  },
+  "conversation_files": [
+    {
+      "filename": "20250721_1016_001_96cef201.json",
+      "session_id": "96cef201-0d8c-41f5-9df5-225e5e0f62b1",
+      "created_at": "2025-07-21T10:16:19.562445",
+      "message_count": 1,
+      "first_user_message": "eat an orange every day for a year, what would the average American find has been different this yea...",
+      "preview": "eat an orange every day for a year, what would the average American find has been different this year?..."
+    },
+    {
+      "filename": "20250721_1009_001_d942d9bf.json",
+      "session_id": "d942d9bf-4f75-4c69-9edd-9a347740ed38",
+      "created_at": "2025-07-21T10:09:08.628600",
+      "message_count": 2,
+      "first_user_message": "Find out about war, what can I learn about world war II?...",
+      "preview": "Find out about war, what can I learn about world war II?..."
+    },
+    {
+      "filename": "20250721_0915_001_96cef201.json",
+      "session_id": "96cef201-0d8c-41f5-9df5-225e5e0f62b1",
+      "created_at": "2025-07-21T09:15:38.963646",
+      "message_count": 1,
+      "first_user_message": "tell me about pituitary glands...",
+      "preview": "tell me about pituitary glands..."
+    },
+    {
+      "filename": "20250721_0846_001_d942d9bf.json",
+      "session_id": "d942d9bf-4f75-4c69-9edd-9a347740ed38",
+      "created_at": "2025-07-21T08:46:03.763858",
+      "message_count": 2,
+      "first_user_message": "Eating peanuts is for everyone...",
+      "preview": "Eating peanuts is for everyone..."
+    }
+  ],
+  "avg_messages_per_conversation": 1.5,
+  "avg_user_chars_per_conversation": 71.25,
+  "avg_ai_chars_per_conversation": 790.25
+}

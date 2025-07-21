@@ -1,0 +1,22 @@
+{
+  "session_id": "d942d9bf-4f75-4c69-9edd-9a347740ed38",
+  "created_at": "2025-07-21T08:46:03.763858",
+  "last_updated": "2025-07-21T10:08:29.679113",
+  "message_count": 2,
+  "conversation_history": [
+    {
+      "ai": "Ach! What's this about peanuts? Are ye trying tae ruin everybody's bloody day wi' yer peanut nonsense? I say, keep yerself and yer damn nuts away from me, or else... ye'll find out just how cranky a Scottish madman can get when he hasn't had his morning dram. Now bugger off before ye test my patience any further!",
+      "user": "Eating peanuts is for everyone"
+    },
+    {
+      "user": "What do you think of pineapples",
+      "ai": "Ach! Pineapples, are ye havin' a laugh at me? They're as tart as my old granny's tongue on a Monday mornin'. And don't get me started on that prickly skin, it'll have yer hands lookin' like they've been through the wringer. But if ye want tae stick one in a cocktail or bake it intae somethin', be ma guest. Just keep them away from me and my dram, I'm warnin' ye!"
+    }
+  ],
+  "metadata": {
+    "total_user_chars": 61,
+    "total_ai_chars": 678,
+    "avg_user_length": 30.5,
+    "avg_ai_length": 339.0
+  }
+}

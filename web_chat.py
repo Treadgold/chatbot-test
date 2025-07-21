@@ -1,9 +1,10 @@
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from chatbot_component import ChatBot, ChatBotConfig
 from stripe_payment import create_payment_intent, get_payment_intent, STRIPE_PUBLISHABLE_KEY
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 from functools import wraps
 import re
@@ -11,6 +12,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 import threading
 import time
+import json
+from pathlib import Path
+from collections import defaultdict
 
 # Try to import flask_limiter, but continue without it if not available
 try:
@@ -26,6 +30,11 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
+
+# Chat logging configuration
+CHAT_LOGGING_ENABLED = os.getenv('CHAT_LOGGING_ENABLED', 'true').lower() == 'true'
+CHAT_ARCHIVE_DIR = os.getenv('CHAT_ARCHIVE_DIR', 'chat_archive')
+ARCHIVE_SUMMARY_FILE = os.path.join(CHAT_ARCHIVE_DIR, 'archive_summary.json')
 
 # Configure logging
 if not app.debug:
@@ -89,7 +98,7 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self'"
     return response
 
 # Input validation decorator
@@ -116,6 +125,208 @@ def validate_input(max_length=2048):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+# Chat Archive Functions
+def ensure_chat_archive_directory():
+    """Create chat archive directory if it doesn't exist"""
+    if CHAT_LOGGING_ENABLED:
+        Path(CHAT_ARCHIVE_DIR).mkdir(exist_ok=True)
+
+def generate_chat_filename(session_id, created_at, message_count):
+    """Generate filename with metadata: YYYYMMDD_HHMM_count_sessionid.json"""
+    timestamp = created_at.strftime('%Y%m%d_%H%M')
+    short_session = session_id.split('-')[0]  # Use first part of UUID
+    return f"{timestamp}_{message_count:03d}_{short_session}.json"
+
+def save_conversation_to_archive(session_id, conversation_history):
+    """Save conversation history to archive with metadata filename"""
+    if not CHAT_LOGGING_ENABLED or not conversation_history:
+        return
+    
+    try:
+        ensure_chat_archive_directory()
+        
+        # Create chat data
+        now = datetime.now()
+        chat_data = {
+            'session_id': session_id,
+            'created_at': now.isoformat(),
+            'last_updated': now.isoformat(),
+            'message_count': len(conversation_history),
+            'conversation_history': conversation_history,
+            'metadata': {
+                'total_user_chars': sum(len(exchange['user']) for exchange in conversation_history),
+                'total_ai_chars': sum(len(exchange['ai']) for exchange in conversation_history),
+                'avg_user_length': sum(len(exchange['user']) for exchange in conversation_history) / len(conversation_history) if conversation_history else 0,
+                'avg_ai_length': sum(len(exchange['ai']) for exchange in conversation_history) / len(conversation_history) if conversation_history else 0,
+            }
+        }
+        
+        # Find existing file for this exact session ID
+        existing_file = None
+        existing_data = None
+        
+        for file_path in Path(CHAT_ARCHIVE_DIR).glob("*.json"):
+            if file_path.name == 'archive_summary.json':
+                continue
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_data = json.load(f)
+                if file_data.get('session_id') == session_id:
+                    existing_file = file_path
+                    existing_data = file_data
+                    break
+            except Exception as e:
+                app.logger.warning(f"Error reading archive file {file_path}: {e}")
+                continue  # Skip corrupted files
+        
+        if existing_file and existing_data:
+            # Verify this is actually the same conversation by checking the first message
+            if (existing_data.get('conversation_history') and 
+                conversation_history and 
+                existing_data['conversation_history'][0]['user'] == conversation_history[0]['user']):
+                
+                # Update existing file - preserve original creation time
+                filepath = existing_file
+                chat_data['created_at'] = existing_data['created_at']
+                app.logger.info(f"Updating existing conversation file: {filepath.name}")
+            else:
+                # Same session ID but different conversation - create new file with timestamp
+                filename = generate_chat_filename(session_id, now, len(conversation_history))
+                filepath = os.path.join(CHAT_ARCHIVE_DIR, filename)
+                app.logger.info(f"Same session ID but different conversation - creating new file: {filename}")
+        else:
+            # Generate new filename for first message
+            filename = generate_chat_filename(session_id, now, len(conversation_history))
+            filepath = os.path.join(CHAT_ARCHIVE_DIR, filename)
+            app.logger.info(f"Creating new conversation file: {filename}")
+        
+        # Save to JSON file
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(chat_data, f, indent=2, ensure_ascii=False)
+        
+        # Update archive summary
+        update_archive_summary()
+        
+        app.logger.info(f"Saved conversation to archive: {filepath.name}")
+        
+    except Exception as e:
+        app.logger.error(f"Failed to save conversation for session {session_id}: {e}")
+
+def update_archive_summary():
+    """Update the archive summary file with current statistics"""
+    if not CHAT_LOGGING_ENABLED:
+        return
+    
+    try:
+        ensure_chat_archive_directory()
+        
+        # Scan all archive files
+        archive_files = list(Path(CHAT_ARCHIVE_DIR).glob("*.json"))
+        archive_files = [f for f in archive_files if f.name != 'archive_summary.json']
+        
+        # Initialize summary data
+        summary = {
+            'last_updated': datetime.now().isoformat(),
+            'total_conversations': len(archive_files),
+            'total_messages': 0,
+            'total_user_chars': 0,
+            'total_ai_chars': 0,
+            'conversations_by_date': defaultdict(int),
+            'messages_by_date': defaultdict(int),
+            'conversations_by_hour': defaultdict(int),
+            'conversation_files': []
+        }
+        
+        # Process each conversation file
+        for file_path in archive_files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    chat_data = json.load(f)
+                
+                # Extract metadata from filename and content
+                filename = file_path.name
+                created_at = datetime.fromisoformat(chat_data['created_at'])
+                date_str = created_at.strftime('%Y-%m-%d')
+                hour = created_at.hour
+                
+                # Update counters
+                message_count = chat_data['message_count']
+                summary['total_messages'] += message_count
+                summary['conversations_by_date'][date_str] += 1
+                summary['messages_by_date'][date_str] += message_count
+                summary['conversations_by_hour'][str(hour)] += 1
+                
+                if 'metadata' in chat_data:
+                    summary['total_user_chars'] += chat_data['metadata'].get('total_user_chars', 0)
+                    summary['total_ai_chars'] += chat_data['metadata'].get('total_ai_chars', 0)
+                
+                # Add file info for conversation list
+                conversation_info = {
+                    'filename': filename,
+                    'session_id': chat_data['session_id'],
+                    'created_at': chat_data['created_at'],
+                    'message_count': message_count,
+                    'first_user_message': chat_data['conversation_history'][0]['user'][:100] + '...' if chat_data['conversation_history'] else '',
+                    'preview': chat_data['conversation_history'][0]['user'][:200] + '...' if chat_data['conversation_history'] else ''
+                }
+                summary['conversation_files'].append(conversation_info)
+                
+            except Exception as e:
+                app.logger.error(f"Error processing archive file {file_path}: {e}")
+                continue
+        
+        # Convert defaultdicts to regular dicts and sort
+        summary['conversations_by_date'] = dict(sorted(summary['conversations_by_date'].items()))
+        summary['messages_by_date'] = dict(sorted(summary['messages_by_date'].items()))
+        summary['conversations_by_hour'] = dict(summary['conversations_by_hour'])
+        
+        # Sort conversation files by creation date (newest first)
+        summary['conversation_files'].sort(key=lambda x: x['created_at'], reverse=True)
+        
+        # Calculate averages
+        if summary['total_conversations'] > 0:
+            summary['avg_messages_per_conversation'] = summary['total_messages'] / summary['total_conversations']
+            summary['avg_user_chars_per_conversation'] = summary['total_user_chars'] / summary['total_conversations']
+            summary['avg_ai_chars_per_conversation'] = summary['total_ai_chars'] / summary['total_conversations']
+        else:
+            summary['avg_messages_per_conversation'] = 0
+            summary['avg_user_chars_per_conversation'] = 0
+            summary['avg_ai_chars_per_conversation'] = 0
+        
+        # Save summary file
+        with open(ARCHIVE_SUMMARY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(summary, f, indent=2, ensure_ascii=False)
+        
+        app.logger.info(f"Updated archive summary: {summary['total_conversations']} conversations, {summary['total_messages']} messages")
+        
+    except Exception as e:
+        app.logger.error(f"Failed to update archive summary: {e}")
+
+def load_archive_summary():
+    """Load the archive summary file"""
+    try:
+        if Path(ARCHIVE_SUMMARY_FILE).exists():
+            with open(ARCHIVE_SUMMARY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        app.logger.error(f"Failed to load archive summary: {e}")
+    
+    # Return empty summary if file doesn't exist or can't be loaded
+    return {
+        'last_updated': datetime.now().isoformat(),
+        'total_conversations': 0,
+        'total_messages': 0,
+        'total_user_chars': 0,
+        'total_ai_chars': 0,
+        'conversations_by_date': {},
+        'messages_by_date': {},
+        'conversations_by_hour': {},
+        'conversation_files': [],
+        'avg_messages_per_conversation': 0,
+        'avg_user_chars_per_conversation': 0,
+        'avg_ai_chars_per_conversation': 0
+    }
 
 # Initialize the chatbot with RunPod serverless configuration
 cfg = ChatBotConfig(
@@ -177,6 +388,12 @@ def update_session_conversation_history(user_input, ai_response):
     if len(history) > 20:
         history = history[-20:]
     session['conversation_history'] = history
+    
+    # Save to archive (every update)
+    session_id = session.get('session_id')
+    if session_id:
+        save_conversation_to_archive(session_id, history)
+    
     return history
 
 # Add a global dictionary to store ongoing chat jobs
@@ -283,6 +500,52 @@ def get_conversation_history():
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'chatbot': 'ready'})
+
+# Chat Archive Analysis Routes
+@app.route('/admin/analytics')
+def analytics():
+    """Show chat analytics dashboard"""
+    summary = load_archive_summary()
+    return render_template('analytics.html', summary=summary)
+
+@app.route('/admin/refresh-analytics', methods=['POST'])
+def refresh_analytics():
+    """Manually refresh the analytics data"""
+    try:
+        update_archive_summary()
+        return jsonify({'status': 'success', 'message': 'Analytics refreshed'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/conversation/<filename>')
+def get_conversation(filename):
+    """Get a specific conversation by filename"""
+    try:
+        # Security: only allow alphanumeric, dashes, underscores, and .json
+        if not re.match(r'^[\w\-_]+\.json$', filename):
+            return jsonify({'error': 'Invalid filename'}), 400
+        
+        filepath = os.path.join(CHAT_ARCHIVE_DIR, filename)
+        
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'Conversation not found'}), 404
+        
+        with open(filepath, 'r', encoding='utf-8') as f:
+            conversation_data = json.load(f)
+        
+        return jsonify(conversation_data)
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/analytics-data')
+def analytics_data():
+    """Get analytics data as JSON"""
+    try:
+        summary = load_archive_summary()
+        return jsonify(summary)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Stripe Payment Routes
 @app.route('/payment')
@@ -455,8 +718,13 @@ if LIMITER_AVAILABLE:
     limiter.exempt(chat_status)
 
 if __name__ == '__main__':
-    # Create templates directory if it doesn't exist
+    # Create necessary directories
     os.makedirs('templates', exist_ok=True)
+    ensure_chat_archive_directory()
+    
+    # Initialize archive summary on startup
+    if CHAT_LOGGING_ENABLED:
+        update_archive_summary()
     
     # Check if running in production
     is_production = os.getenv('FLASK_ENV') == 'production'
