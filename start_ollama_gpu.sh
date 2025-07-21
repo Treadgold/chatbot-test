@@ -3,7 +3,7 @@
 # Force Ollama to use GPU only
 export OLLAMA_NUM_CPU=0
 export OLLAMA_N_GPU_LAYERS=9999
-export OLLAMA_CTX_SIZE=8192
+export OLLAMA_CTX_SIZE=2048  # Reduced from 8192 to 2048
 
 # Optional: Set additional GPU-related variables
 export OLLAMA_GPU_OVERHEAD=0

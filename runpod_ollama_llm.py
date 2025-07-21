@@ -12,7 +12,7 @@ class RunPodOllamaLLM:
         api_key: str,
         model: str = "CognitiveComputations/dolphin-mistral-nemo:latest",
         poll_interval: float = 1.0,
-        timeout: float = 300.0,  # 5 minutes for model download + generation
+        timeout: float = 0,  # No timeout - wait indefinitely
     ):
         """Initialize the RunPod Ollama LLM wrapper.
         
@@ -94,7 +94,7 @@ class RunPodOllamaLLM:
         
         start_time = time.time()
         
-        while time.time() - start_time < self.timeout:
+        while self.timeout == 0 or time.time() - start_time < self.timeout:
             response = requests.get(
                 f"{self.endpoint}/status/{job_id}",
                 headers=headers,
@@ -114,4 +114,9 @@ class RunPodOllamaLLM:
             # Still running, wait before next check
             time.sleep(self.poll_interval)
         
-        raise TimeoutError(f"Job {job_id} timed out after {self.timeout} seconds") 
+        # This should only be reached if timeout > 0
+        if self.timeout > 0:
+            raise TimeoutError(f"Job {job_id} timed out after {self.timeout} seconds")
+        else:
+            # This should never happen with timeout=0, but just in case
+            raise RuntimeError(f"Job {job_id} ended unexpectedly") 

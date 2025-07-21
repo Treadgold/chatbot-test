@@ -6,7 +6,7 @@ from runpod_llm import RunPodLLM
 from runpod_ollama_llm import RunPodOllamaLLM
 
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Literal, Optional, Dict, List, Any
 
 class Generated_Joke(BaseModel):
     joke: str = Field(description="The generated joke")
@@ -28,14 +28,14 @@ class State(TypedDict):
     thoughts: str
     plan: str
     action: str
-    user_messages: list[HumanMessage]
-    response: list[str]
+    user_messages: List[HumanMessage]
+    response: List[str]
     generated_joke: Generated_Joke
     quality_score: Quality_Score
     structured_thought: Thought
     structured_response: Response
     joke_iteration: int
-    conversation_history: list[dict]  # Store conversation history
+    conversation_history: List[Dict[str, Any]]  # Store conversation history
 
 class ChatBotConfig:
     """Configuration class for the chatbot.
@@ -60,12 +60,14 @@ class ChatBotConfig:
         runpod_endpoint: Optional[str] = None,
         runpod_api_key: Optional[str] = None,
         runpod_ollama_proxy_url: Optional[str] = None,
+        timeout: float = 0,  # No timeout - wait indefinitely
     ):
         self.model_name = model_name
         self.base_url = base_url
         self.max_iterations = max_iterations
         self.min_joke_score = min_joke_score
         self.principles = principles
+        self.timeout = timeout
 
         # LLM backend selection
         self.provider = provider.lower()
@@ -91,11 +93,11 @@ class ChatBot:
             if not self.config.runpod_endpoint or not self.config.runpod_api_key:
                 raise ValueError("RunPod endpoint and API key must be provided when provider='runpod'.")
             self.llm = RunPodLLM(
-                endpoint=self.config.runpod_endpoint, 
+                endpoint=self.config.runpod_endpoint,
                 api_key=self.config.runpod_api_key,
                 model=self.config.model_name,
-                timeout=45.0,  # Increased timeout for reliability
-                num_predict=512  # Limit response length for faster processing
+                timeout=0,  # No timeout - wait indefinitely
+                num_predict=0  # Let the model decide its own response length
             )
             # Re-use the same RunPod client for all LLM calls
             self.quality_score_llm = self.llm

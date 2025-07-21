@@ -1,6 +1,6 @@
 {
-  "template_name": "o-s-t",
-  "endpoint_name": "o-s-e",
+  "template_name": "o-s-t-small",
+  "endpoint_name": "o-s-e-small",
   "container_disk_gb": 30,
   "volume_gb": 0,
   "volume_mount_path": "/workspace",
@@ -9,10 +9,18 @@
     {"key": "PYTHONUNBUFFERED", "value": "1"},
     {"key": "OLLAMA_HOST", "value": "0.0.0.0"},
     {"key": "OLLAMA_ORIGINS", "value": "*"},
-    {"key": "OLLAMA_GPU_LAYERS", "value": "50"},
+    {"key": "OLLAMA_GPU_LAYERS", "value": "9999"},
     {"key": "OLLAMA_KEEP_ALIVE", "value": "5m"},
     {"key": "OLLAMA_LOAD_TIMEOUT", "value": "5m"},
-    {"key": "CUDA_VISIBLE_DEVICES", "value": "0"}
+    {"key": "CUDA_VISIBLE_DEVICES", "value": "0"},
+    {"key": "OLLAMA_CTX_SIZE", "value": "8192"},
+    {"key": "OLLAMA_NUM_CPU", "value": "0"},
+    {"key": "OLLAMA_N_GPU_LAYERS", "value": "9999"},
+    {"key": "OLLAMA_LOW_VRAM", "value": "false"},
+    {"key": "OLLAMA_FLASH_ATTENTION", "value": "true"},
+    {"key": "OLLAMA_GPU_OVERHEAD", "value": "1024"},
+    {"key": "OLLAMA_KV_CACHE_TYPE", "value": "q8_0"},
+    {"key": "OLLAMA_MAX_BATCH_SIZE", "value": "128"}
   ],
   "ports": "11434/http",
   "start_jupyter": false,
@@ -24,4 +32,4 @@
   "workers_min": 0,
   "workers_max": 1,
   "jobs_per_worker": 1
-} 
+}

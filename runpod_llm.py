@@ -17,9 +17,9 @@ class RunPodLLM:
         api_key: str,
         model: str = "CognitiveComputations/dolphin-mistral-nemo:latest",
         poll_interval: float = 1.0,
-        timeout: float = 120.0,  # Increased from 60 to 120 seconds
+        timeout: float = 0,  # No timeout - wait indefinitely
         temperature: Union[float, None] = 0.75,
-        num_predict: Union[int, None] = 1024,
+        num_predict: Union[int, None] = 512,  # Reduced from 1024 to 512
         top_p: Union[float, None] = 0.9,
         repetition_penalty: Union[float, None] = 1.1,
     ) -> None:
@@ -107,7 +107,8 @@ class RunPodLLM:
         start_time = time.time()
         
         while True:
-            if time.time() - start_time > self.timeout:
+            # Only check timeout if timeout is greater than 0 (0 means wait indefinitely)
+            if self.timeout > 0 and time.time() - start_time > self.timeout:
                 raise TimeoutError(f"RunPod job {job_id} timed out after {self.timeout} seconds")
                 
             resp = requests.get(status_url, headers=self._headers(), timeout=30)

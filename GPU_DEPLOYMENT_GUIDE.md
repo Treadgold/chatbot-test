@@ -120,21 +120,39 @@ watch -n 1 nvidia-smi
 ### Model-Specific GPU Layers
 For optimal performance, adjust `OLLAMA_N_GPU_LAYERS` based on your model:
 
-| Model Size | GPU Layers | Memory Usage |
-|------------|------------|--------------|
-| 7B         | 35         | ~8GB         |
-| 13B        | 43         | ~16GB        |
-| 30B        | 60         | ~32GB        |
-| 70B        | 80         | ~64GB        |
+| Model Size | GPU Layers | Memory Usage | 24GB VRAM Status |
+|------------|------------|--------------|------------------|
+| 7B         | 35         | ~8GB         | ✅ Excellent     |
+| 12B (Nemo) | 9999       | ~12-15GB     | ✅ Optimal       |
+| 13B        | 43         | ~16GB        | ✅ Good          |
+| 30B        | 60         | ~32GB        | ❌ Too Large     |
+| 70B        | 80         | ~64GB        | ❌ Too Large     |
+
+**Current Model: CognitiveComputations/dolphin-mistral-nemo (12B)**
+- Quantized Size: 7.1GB 
+- With Context (8192): ~12-15GB total VRAM
+- Recommended for 24GB: ✅ Perfect fit
 
 ### Context Size Optimization
 ```bash
-# For longer conversations
+# For 24GB VRAM with 12B model (Recommended)
+OLLAMA_CTX_SIZE=8192
+
+# For longer conversations (may use more VRAM)
 OLLAMA_CTX_SIZE=16384
 
 # For memory-constrained environments
 OLLAMA_CTX_SIZE=4096
+
+# Conservative setting (always fits)
+OLLAMA_CTX_SIZE=2048
 ```
+
+**VRAM Impact for dolphin-mistral-nemo (12B):**
+- Context 2048: ~11GB total VRAM
+- Context 4096: ~12GB total VRAM  
+- Context 8192: ~14GB total VRAM ✅ (Recommended)
+- Context 16384: ~18GB total VRAM (may be tight)
 
 ## 🚨 Troubleshooting
 

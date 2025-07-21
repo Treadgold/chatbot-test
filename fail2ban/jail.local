@@ -1,0 +1,41 @@
+[DEFAULT]
+# Ban IPs for 1 hour by default
+bantime = 3600
+
+# Check for violations in the last 10 minutes
+findtime = 600
+
+# Allow 5 violations before banning
+maxretry = 5
+
+# Email notification (optional - configure your email)
+# destemail = admin@yourdomain.com
+# sender = fail2ban@yourdomain.com
+
+[sshd]
+enabled = true
+port = ssh
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 7200
+
+[chatbot-app]
+enabled = true
+port = http,https
+# Adjust logpath to your actual Flask application log file
+logpath = /var/log/nginx/access.log
+# Alternative: if logging directly from Flask
+# logpath = /var/log/chatbot/access.log
+filter = chatbot-wordpress
+maxretry = 3
+bantime = 7200
+findtime = 300
+
+[chatbot-rate-limit]
+enabled = true
+port = http,https
+logpath = /var/log/nginx/access.log
+filter = chatbot-rate-limit
+maxretry = 2
+bantime = 3600
+findtime = 180 

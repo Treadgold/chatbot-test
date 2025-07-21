@@ -62,9 +62,11 @@ def handler(job):
         # Process the request
         prompt = job_input.get('prompt', 'Hello!')
         model = job_input.get('model', 'dolphin-mistral-nemo:latest')
+        options = job_input.get('options', {})
         
         print(f"Processing: {prompt}")
         print(f"Requested model: {model}")
+        print(f"Options: {options}")
         
         # Check if the requested model is available
         if model not in available_models:
@@ -98,29 +100,50 @@ def handler(job):
                         "available_models": available_models
                     }
         
+        # Build payload with client options, providing sensible defaults
+        ollama_options = {
+            "temperature": options.get("temperature", 0.7),
+            "num_predict": options.get("num_predict", 512),  # Default 512, 0 means unlimited
+            "top_p": options.get("top_p", 0.9),
+            "repetition_penalty": options.get("repetition_penalty", 1.1)
+        }
+        
+        # Handle num_predict=0 (unlimited tokens)
+        if ollama_options["num_predict"] == 0:
+            ollama_options["num_predict"] = -1  # Ollama uses -1 for unlimited
+            
         payload = {
             "model": model,
             "prompt": prompt,
             "stream": False,
-            "options": {
-                "temperature": 0.7,
-                "num_predict": 100
-            }
+            "options": ollama_options
         }
         
         print(f"Sending request to Ollama with model: {model}")
+        print(f"Payload: {payload}")
+        
+        # Use much longer timeout for complex generations - LangGraph can take time
+        timeout_seconds = 300  # 5 minutes
         response = requests.post(
             "http://localhost:11434/api/generate",
             json=payload,
-            timeout=60
+            timeout=timeout_seconds
         )
         
         if response.status_code == 200:
             result = response.json()
+            response_text = result.get("response", "")
+            print(f"✅ Generation successful, response length: {len(response_text)} chars")
             return {
-                "response": result.get("response", ""),
+                "response": response_text,
                 "model_used": model,
-                "available_models": available_models
+                "available_models": available_models,
+                "generation_stats": {
+                    "eval_count": result.get("eval_count", 0),
+                    "eval_duration": result.get("eval_duration", 0),
+                    "prompt_eval_count": result.get("prompt_eval_count", 0),
+                    "prompt_eval_duration": result.get("prompt_eval_duration", 0)
+                }
             }
         else:
             return {
